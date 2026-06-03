@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>ใบเสร็จ {{ t.trans_no }}</title>
+<style>
+  body { font-family: 'Courier New', monospace; font-size: 12px; max-width: 300px; margin: 0 auto; padding: 10px; }
+  h2 { text-align: center; font-size: 16px; margin: 4px 0; }
+  .center { text-align: center; }
+  .divider { border-top: 1px dashed #000; margin: 6px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 2px 0; vertical-align: top; }
+  .qty-col { width: 40px; text-align: right; }
+  .price-col { width: 70px; text-align: right; }
+  .total-section { margin-top: 6px; }
+  .total-section td:last-child { text-align: right; font-weight: bold; }
+  .exchange-line { color: #555; }
+  .grand-total td { font-size: 14px; font-weight: bold; border-top: 1px solid #000; }
+  @media print {
+    .no-print { display: none; }
+    body { margin: 0; }
+  }
+</style>
+</head>
+<body>
+<h2>TeeDinamo</h2>
+<p class="center">ร้านอะไหล่มอเตอร์ไซค์</p>
+<div class="divider"></div>
+<p>บิลเลขที่: {{ t.trans_no }}<br>
+วันที่: {{ t.date[:16].replace('T',' ') }}<br>
+พนักงาน: {{ t.username }}</p>
+<div class="divider"></div>
+<table>
+  <thead>
+    <tr>
+      <td><b>สินค้า</b></td>
+      <td class="qty-col"><b>จำนวน</b></td>
+      <td class="price-col"><b>ราคา</b></td>
+    </tr>
+  </thead>
+  <tbody>
+    {% for it in items %}
+    <tr>
+      <td>{{ it.itemname }}</td>
+      <td class="qty-col">{{ it.qty }}</td>
+      <td class="price-col">{{ "{:,.2f}".format(it.unit_price * it.qty) }}</td>
+    </tr>
+    {% if it.exchange_used %}
+    <tr class="exchange-line">
+      <td colspan="2">  หักแบต ({{ it.qty }} ก้อน)</td>
+      <td class="price-col">-{{ "{:,.2f}".format(it.exchange_value) }}</td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+  </tbody>
+</table>
+<div class="divider"></div>
+<table class="total-section">
+  <tr class="grand-total">
+    <td>ยอดรวม</td>
+    <td>฿{{ "{:,.2f}".format(t.total) }}</td>
+  </tr>
+  <tr>
+    <td>รับเงิน</td>
+    <td>฿{{ "{:,.2f}".format(t.payment) }}</td>
+  </tr>
+  <tr>
+    <td>ทอนเงิน</td>
+    <td>฿{{ "{:,.2f}".format(t.change) }}</td>
+  </tr>
+</table>
+<div class="divider"></div>
+<p class="center">ขอบคุณที่ใช้บริการ</p>
+
+<div class="no-print" style="text-align:center; margin-top:16px;">
+  <button onclick="window.print()" style="padding:8px 24px; font-size:14px;">🖨 พิมพ์</button>
+  <button onclick="window.close()" style="padding:8px 24px; font-size:14px;">ปิด</button>
+</div>
+</body>
+</html>

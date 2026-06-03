@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>เข้าสู่ระบบ — TeeDinamo POS</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-body">
+<div class="login-card">
+  <h1>⚡ TeeDinamo POS</h1>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  <form method="POST">
+    <label>ชื่อผู้ใช้</label>
+    <input type="text" name="username" autofocus required>
+    <label>รหัสผ่าน</label>
+    <input type="password" name="password" required>
+    <button type="submit" class="btn btn-primary">เข้าสู่ระบบ</button>
+  </form>
+</div>
+</body>
+</html>

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}POS — TeeDinamo{% endblock %}
+{% block content %}
+<div class="pos-layout">
+
+  <!-- LEFT: ค้นหา + รายการสินค้า -->
+  <div class="pos-left">
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="สแกนบาร์โค้ด หรือพิมพ์ชื่อสินค้า..." autofocus>
+      <span class="price-badge">ราคา: {{ price_level }}</span>
+    </div>
+    <div id="searchResults" class="search-results"></div>
+  </div>
+
+  <!-- RIGHT: ตะกร้า -->
+  <div class="pos-right">
+    <h2>ตะกร้า</h2>
+    <div id="cart" class="cart-list"></div>
+
+    <div class="cart-summary">
+      <div class="summary-row">
+        <span>รวม</span><span id="subtotal">฿0.00</span>
+      </div>
+      <div class="summary-row exchange-row">
+        <span>หักแบตเตอรี่เก่า</span><span id="exchangeDeduct" class="text-red">-฿0.00</span>
+      </div>
+      <div class="summary-row total-row">
+        <span>ยอดสุทธิ</span><span id="grandTotal">฿0.00</span>
+      </div>
+      <div class="payment-section">
+        <label>รับเงิน (บาท)</label>
+        <input type="number" id="paymentInput" min="0" step="0.01" placeholder="0.00">
+        <div class="quick-cash">
+          <button onclick="setCash(20)">20</button>
+          <button onclick="setCash(50)">50</button>
+          <button onclick="setCash(100)">100</button>
+          <button onclick="setCash(500)">500</button>
+          <button onclick="setCash(1000)">1000</button>
+        </div>
+        <div class="summary-row change-row">
+          <span>ทอน</span><span id="changeAmt">฿0.00</span>
+        </div>
+      </div>
+      <button id="checkoutBtn" class="btn btn-success btn-lg" onclick="checkout()">
+        ✓ ชำระเงิน
+      </button>
+      <button class="btn btn-danger btn-sm" onclick="clearCart()">ล้างตะกร้า</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: ใบเสร็จ popup -->
+<div id="receiptModal" class="modal hidden">
+  <div class="modal-content">
+    <h3>ชำระเงินสำเร็จ</h3>
+    <p id="modalTransNo"></p>
+    <p id="modalTotal"></p>
+    <p id="modalChange"></p>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="printReceipt()">พิมพ์ใบเสร็จ</button>
+      <button class="btn btn-secondary" onclick="closeModal()">ขายต่อ</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pos.js') }}"></script>
+{% endblock %}

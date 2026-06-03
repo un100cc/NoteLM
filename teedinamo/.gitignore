@@ -1,0 +1,20 @@
+# Database
+teedinamo.db
+
+# Sensitive keys
+gsheet_key.json
+
+# Firebird embedded DLLs
+*.dll
+*.msg
+aliases.conf
+firebird.conf
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Temp / inspect scripts
+inspect_fdb.py
+convert_fdb.py

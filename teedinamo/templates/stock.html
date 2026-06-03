@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}สต็อก — TeeDinamo{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>สต็อกสินค้า</h2>
+  <a href="/api/sync/status" target="_blank" class="btn btn-secondary btn-sm">ดู Sync Log</a>
+</div>
+
+<input type="text" id="stockSearch" placeholder="ค้นหาสินค้า..." class="search-input" oninput="filterStock(this.value)">
+
+<table class="data-table" id="stockTable">
+  <thead>
+    <tr>
+      <th>Item ID</th>
+      <th>ชื่อสินค้า</th>
+      <th>บาร์โค้ด</th>
+      <th>หน่วย</th>
+      <th>สต็อก</th>
+      <th>ราคาปกติ</th>
+      <th>ราคาช่าง</th>
+      <th>ราคาแลกเปลี่ยน</th>
+      <th>มูลค่าแบต</th>
+      <th>เตือนเมื่อ</th>
+      {% if session.role == 'admin' %}<th>จัดการ</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for it in items %}
+    <tr class="{% if it.id in low_ids %}row-low{% endif %}">
+      <td>{{ it.itemid }}</td>
+      <td>{{ it.itemname }}</td>
+      <td>{{ it.barcode or '-' }}</td>
+      <td>{{ it.unit }}</td>
+      <td class="{% if it.id in low_ids %}text-red bold{% endif %}">{{ it.stock }}</td>
+      <td>{{ "฿{:,.2f}".format(it.price_normal) }}</td>
+      <td>{{ "฿{:,.2f}".format(it.price_tech) }}</td>
+      <td>{{ "฿{:,.2f}".format(it.price_exchange) }}</td>
+      <td>{{ "฿{:,.2f}".format(it.exchange_value) }}</td>
+      <td>{{ it.low_stock_threshold }}</td>
+      {% if session.role == 'admin' %}
+      <td>
+        <button class="btn btn-sm btn-secondary" onclick="editItem({{ it.id }}, {{ it.low_stock_threshold }}, {{ it.exchange_value }})">แก้ไข</button>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal hidden">
+  <div class="modal-content">
+    <h3>แก้ไขสินค้า</h3>
+    <form id="editForm" method="POST">
+      <label>เตือนเมื่อสต็อกต่ำกว่า</label>
+      <input type="number" name="threshold" id="editThreshold" step="1" min="0">
+      <label>มูลค่าแบตเตอรี่เก่า (บาท)</label>
+      <input type="number" name="exchange_value" id="editExchange" step="0.01" min="0">
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary">บันทึก</button>
+        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">ยกเลิก</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterStock(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll("#stockTable tbody tr").forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(q) ? "" : "none";
+  });
+}
+
+function editItem(id, threshold, exval) {
+  document.getElementById("editForm").action = `/api/stock/item/${id}`;
+  document.getElementById("editThreshold").value = threshold;
+  document.getElementById("editExchange").value = exval;
+  document.getElementById("editModal").classList.remove("hidden");
+}
+
+function closeEditModal() {
+  document.getElementById("editModal").classList.add("hidden");
+}
+</script>
+{% endblock %}
