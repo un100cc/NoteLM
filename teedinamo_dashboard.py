@@ -54,11 +54,21 @@ def get_data():
     # stock ทั้งหมด
     cur.execute("""
         SELECT I.ITEMID, I.ITEMNAME,
-               COALESCE((
-                   SELECT SUM(C.BALANCEQUANTITY)
-                   FROM CALCAVG C
-                   WHERE C.SYSITEMID = I.SYSITEMID
-               ), 0) AS STOCK,
+               COALESCE(
+                   (SELECT FIRST 1 C.BALANCEQUANTITY
+                    FROM CALCAVG C
+                    WHERE C.SYSITEMID = I.SYSITEMID
+                    ORDER BY C.SEGMENTS DESC),
+                   (SELECT SUM(CASE T.TRANSOURCE
+                                   WHEN 'U' THEN D.BASEQUANTITY
+                                   WHEN 'P' THEN -D.BASEQUANTITY
+                                   ELSE 0
+                               END)
+                    FROM TRANDETAILITEM D
+                    JOIN TRANS T ON T.SYSTRANNO = D.SYSTRANNO
+                    WHERE D.SYSITEMID = I.SYSITEMID AND T.FCANCEL = 0),
+                   0
+               ) AS STOCK,
                COALESCE(I.ESTIMATECOST, 0) AS COST
         FROM ITEMS I
         WHERE I.FUSED = 1 AND I.FEFFECTSTOCK = 1
