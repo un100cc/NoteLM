@@ -1,9 +1,42 @@
 import firebirdsql
 import json
+import re
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import webbrowser
 import threading
+
+LOG_PATH = r'C:\SeniorSoft ProMaxx\logfile.txt'
+
+def get_logs(limit=200):
+    try:
+        with open(LOG_PATH, encoding='utf-8-sig', errors='replace') as f:
+            lines = f.readlines()
+        entries = []
+        for line in reversed(lines):
+            line = line.strip()
+            if not line:
+                continue
+            m = re.search(
+                r'Commit SYSTRANNO\s*=\s*(\d+).*?TRANNO\s*=\s*(\S+).*?EMPID\s*=\s*(\d+).*?TIME\s*=\s*([^\s]+ [^\s]+)',
+                line
+            )
+            if m:
+                entries.append({
+                    'type': 'commit',
+                    'systranno': m.group(1),
+                    'tranno': m.group(2),
+                    'empid': m.group(3),
+                    'time': m.group(4),
+                    'raw': line,
+                })
+            else:
+                entries.append({'type': 'raw', 'raw': line})
+            if len(entries) >= limit:
+                break
+        return entries
+    except Exception as e:
+        return [{'type': 'error', 'raw': str(e)}]
 
 DB_HOST = 'localhost'
 DB_PORT = 3050
@@ -297,6 +330,7 @@ HTML = """<!DOCTYPE html>
   <button class="nav-btn" onclick="showPage('today',this)">🧾 ยอดขายวันนี้</button>
   <button class="nav-btn" onclick="showPage('stock',this)">📦 Stock ทั้งหมด</button>
   <button class="nav-btn" onclick="showPage('low',this)">⚠️ ใกล้หมด / หมดแล้ว</button>
+  <button class="nav-btn" onclick="showPage('log',this);loadLog()">📋 Log ระบบ</button>
 </div>
 
 <!-- PAGE: DASHBOARD -->
@@ -372,6 +406,26 @@ HTML = """<!DOCTYPE html>
       <div class="page-info" id="stock-page-info"></div>
       <div class="page-btns" id="stock-page-btns"></div>
     </div>
+  </div>
+</div>
+
+<!-- PAGE: LOG -->
+<div id="page-log" class="page">
+  <div class="card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span><span class="dot blue"></span>Log ระบบ <span id="log-count" style="color:var(--muted);font-size:12px;font-weight:400"></span></span>
+      <button class="refresh-btn" onclick="reloadLog()" style="font-size:12px;padding:4px 12px">🔄 รีโหลด</button>
+    </div>
+    <input class="search-box" type="text" placeholder="🔍 ค้นหา เลขที่บิล / รหัสพนักงาน..." id="log-search" oninput="reloadLog()">
+    <table>
+      <thead><tr>
+        <th>SYSTRANNO</th>
+        <th>เลขที่บิล</th>
+        <th>รหัสพนักงาน</th>
+        <th>เวลา</th>
+      </tr></thead>
+      <tbody id="log-table"><tr><td colspan="4" style="color:var(--muted);text-align:center">คลิกแท็บ Log ระบบ เพื่อโหลด</td></tr></tbody>
+    </table>
   </div>
 </div>
 
@@ -624,6 +678,46 @@ function toggleBill(i) {
 
 loadData();
 setInterval(loadData, 60000);
+
+// ===== LOG PAGE =====
+let logLoaded = false;
+function loadLog() {
+  if (logLoaded) return;
+  logLoaded = true;
+  document.getElementById('log-table').innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center">กำลังโหลด...</td></tr>';
+  fetch('/logs').then(r=>r.json()).then(data=>{
+    renderLog(data);
+  }).catch(e=>{
+    document.getElementById('log-table').innerHTML = '<tr><td colspan="4" style="color:#f87171">โหลด log ไม่ได้: '+e+'</td></tr>';
+  });
+}
+function reloadLog() {
+  logLoaded = false;
+  loadLog();
+}
+function renderLog(entries) {
+  const commits = entries.filter(e=>e.type==='commit');
+  document.getElementById('log-count').textContent = `(${commits.length} รายการ)`;
+  const q = (document.getElementById('log-search').value||'').toLowerCase();
+  const filtered = commits.filter(e=>
+    !q || e.tranno.toLowerCase().includes(q) || e.empid.includes(q) || e.time.includes(q)
+  );
+  if (!filtered.length) {
+    document.getElementById('log-table').innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center">ไม่พบรายการ</td></tr>';
+    return;
+  }
+  document.getElementById('log-table').innerHTML = filtered.map(e=>`
+    <tr>
+      <td style="color:var(--muted);font-size:12px">${e.systranno}</td>
+      <td style="font-family:'Prompt',sans-serif;font-weight:600;font-size:13px">${e.tranno}</td>
+      <td style="color:var(--muted)">${e.empid}</td>
+      <td style="color:var(--muted);font-size:12px">${e.time}</td>
+    </tr>
+  `).join('');
+}
+document.getElementById('log-search') && document.getElementById('log-search').addEventListener('input', ()=>{
+  fetch('/logs').then(r=>r.json()).then(renderLog);
+});
 </script>
 </body>
 </html>
@@ -643,6 +737,17 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
                 self.end_headers()
                 self.wfile.write(json.dumps(data, ensure_ascii=False, default=str).encode('utf-8'))
+            except Exception as e:
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(str(e).encode())
+        elif self.path.startswith('/logs'):
+            try:
+                logs = get_logs(300)
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps(logs, ensure_ascii=False).encode('utf-8'))
             except Exception as e:
                 self.send_response(500)
                 self.end_headers()
