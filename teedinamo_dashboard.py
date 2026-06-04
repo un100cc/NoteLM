@@ -55,10 +55,9 @@ def get_data():
     cur.execute("""
         SELECT I.ITEMID, I.ITEMNAME,
                COALESCE((
-                   SELECT FIRST 1 C.BALANCEQUANTITY
+                   SELECT SUM(C.BALANCEQUANTITY)
                    FROM CALCAVG C
                    WHERE C.SYSITEMID = I.SYSITEMID
-                   ORDER BY C.SEGMENTS DESC
                ), 0) AS STOCK,
                COALESCE(I.ESTIMATECOST, 0) AS COST
         FROM ITEMS I
