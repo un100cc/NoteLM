@@ -6,8 +6,17 @@
   <a href="/api/sync/status" target="_blank" class="btn btn-secondary btn-sm">ดู Sync Log</a>
 </div>
 
-<input type="text" id="stockSearch" placeholder="ค้นหาสินค้า..." class="search-input" oninput="filterStock(this.value)">
+<div class="filter-bar">
+  <input type="text" id="stockSearch" placeholder="ค้นหาสินค้า..." class="search-input" style="margin-bottom:0;flex:1" oninput="applyFilter()">
+  <div class="state-tabs">
+    <button class="state-tab active" data-state="all"     onclick="setState('all')">ทั้งหมด</button>
+    <button class="state-tab"        data-state="ok"      onclick="setState('ok')">✅ มีพอใช้</button>
+    <button class="state-tab"        data-state="low"     onclick="setState('low')">⚠️ ใกล้หมด</button>
+    <button class="state-tab"        data-state="out"     onclick="setState('out')">🔴 หมดแล้ว</button>
+  </div>
+</div>
 
+<div id="stockStats" class="stock-stats"></div>
 <table class="data-table" id="stockTable">
   <thead>
     <tr>
@@ -26,7 +35,9 @@
   </thead>
   <tbody>
     {% for it in items %}
-    <tr class="{% if it.id in low_ids %}row-low{% endif %}">
+    <tr class="{% if it.stock <= 0 %}row-out{% elif it.id in low_ids %}row-low{% endif %}"
+        data-state="{% if it.stock <= 0 %}out{% elif it.id in low_ids %}low{% else %}ok{% endif %}"
+        data-name="{{ it.itemname|lower }} {{ it.itemid|lower }} {{ it.barcode or '' }}">
       <td>{{ it.itemid }}</td>
       <td>{{ it.itemname }}</td>
       <td>{{ it.barcode or '-' }}</td>
@@ -67,12 +78,44 @@
 
 {% block scripts %}
 <script>
-function filterStock(q) {
-  q = q.toLowerCase();
-  document.querySelectorAll("#stockTable tbody tr").forEach(row => {
-    row.style.display = row.textContent.toLowerCase().includes(q) ? "" : "none";
-  });
+let currentState = "all";
+
+function setState(state) {
+  currentState = state;
+  document.querySelectorAll(".state-tab").forEach(b => b.classList.remove("active"));
+  document.querySelector(`.state-tab[data-state="${state}"]`).classList.add("active");
+  applyFilter();
 }
+
+function applyFilter() {
+  const q = document.getElementById("stockSearch").value.toLowerCase();
+  let total=0, shown=0, outCount=0, lowCount=0, okCount=0;
+
+  document.querySelectorAll("#stockTable tbody tr").forEach(row => {
+    const state = row.dataset.state;
+    const name  = row.dataset.name || "";
+    if (state === "out") outCount++;
+    else if (state === "low") lowCount++;
+    else okCount++;
+    total++;
+
+    const matchState = currentState === "all" || state === currentState;
+    const matchQ     = !q || name.includes(q);
+    row.style.display = matchState && matchQ ? "" : "none";
+    if (matchState && matchQ) shown++;
+  });
+
+  document.getElementById("stockStats").innerHTML = `
+    <span class="stat-chip all"   onclick="setState('all')"  >ทั้งหมด ${total}</span>
+    <span class="stat-chip ok"    onclick="setState('ok')"   >✅ มีพอใช้ ${okCount}</span>
+    <span class="stat-chip low"   onclick="setState('low')"  >⚠️ ใกล้หมด ${lowCount}</span>
+    <span class="stat-chip out"   onclick="setState('out')"  >🔴 หมดแล้ว ${outCount}</span>
+    <span style="color:var(--muted);font-size:12px">แสดง ${shown} รายการ</span>
+  `;
+}
+
+// init
+applyFilter();
 
 function editItem(id, threshold, exval) {
   document.getElementById("editForm").action = `/api/stock/item/${id}`;

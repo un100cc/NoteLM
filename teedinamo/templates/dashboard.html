@@ -6,9 +6,21 @@
 {% block content %}
 <div class="page-header">
   <h2>Dashboard</h2>
-  <button class="btn btn-success" onclick="syncSheets()" id="syncBtn">
-    📊 Sync → Google Sheets
-  </button>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-primary" onclick="openAgent()" id="agentBtn">🤖 ตรวจสต็อก</button>
+    <button class="btn btn-success" onclick="syncSheets()" id="syncBtn">📊 Sync → Google Sheets</button>
+  </div>
+</div>
+
+<!-- Agent Modal -->
+<div id="agentModal" class="modal hidden">
+  <div class="modal-content" style="min-width:700px;max-width:90vw;text-align:left;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0">🤖 Stock Agent Report</h3>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('agentModal').classList.add('hidden')">✕ ปิด</button>
+    </div>
+    <div id="agentContent">⏳ กำลังวิเคราะห์...</div>
+  </div>
 </div>
 <div class="stat-cards">
   <div class="stat-card">
@@ -39,6 +51,55 @@
 
 {% block scripts %}
 <script>
+function openAgent() {
+  document.getElementById("agentModal").classList.remove("hidden");
+  document.getElementById("agentContent").innerHTML = "⏳ กำลังวิเคราะห์...";
+  fetch("/api/agent/stock").then(r => r.json()).then(renderAgent);
+}
+
+function renderAgent(d) {
+  const s = d.summary, sal = d.sales_30d;
+  let html = `
+    <div class="stat-cards" style="margin-bottom:16px">
+      <div class="stat-card"><div class="stat-label">สินค้าทั้งหมด</div><div class="stat-value">${s.total_items}</div></div>
+      <div class="stat-card"><div class="stat-label">✅ มีพอใช้</div><div class="stat-value" style="color:#27ae60">${s.ok_count}</div></div>
+      <div class="stat-card stat-warn"><div class="stat-label">⚠️ ใกล้หมด</div><div class="stat-value" style="color:#f39c12">${s.low_count}</div></div>
+      <div class="stat-card" style="border-color:#e74c3c;background:#fff5f5"><div class="stat-label">🔴 หมดแล้ว</div><div class="stat-value" style="color:#e74c3c">${s.out_count}</div></div>
+    </div>
+    <p style="color:var(--muted);font-size:13px">💰 ยอดขาย 30 วัน: <b>${sal.bills||0} บิล</b> รวม <b>฿${Number(sal.revenue||0).toLocaleString()}</b></p>`;
+
+  if (d.out_of_stock.length) {
+    html += `<h4 style="color:#e74c3c;margin:16px 0 8px">🔴 สต็อกหมด (${d.out_of_stock.length} รายการ)</h4>
+    <table class="data-table"><thead><tr><th>สินค้า</th><th>Item ID</th><th>สต็อก</th></tr></thead><tbody>
+    ${d.out_of_stock.map(it=>`<tr><td>${it.itemname}</td><td>${it.itemid}</td><td style="color:#e74c3c;font-weight:700">${it.stock}</td></tr>`).join("")}
+    </tbody></table>`;
+  }
+
+  if (d.low_stock.length) {
+    html += `<h4 style="color:#f39c12;margin:16px 0 8px">⚠️ ใกล้หมด (${d.low_stock.length} รายการ)</h4>
+    <table class="data-table"><thead><tr><th>สินค้า</th><th>สต็อก</th><th>เตือนที่</th><th>หน่วย</th></tr></thead><tbody>
+    ${d.low_stock.map(it=>`<tr><td>${it.itemname}</td><td style="color:#f39c12;font-weight:700">${it.stock}</td><td>${it.low_stock_threshold}</td><td>${it.unit}</td></tr>`).join("")}
+    </tbody></table>`;
+  }
+
+  if (d.top_sellers.length) {
+    html += `<h4 style="color:#27ae60;margin:16px 0 8px">🔥 ขายดี 30 วัน</h4>
+    <table class="data-table"><thead><tr><th>#</th><th>สินค้า</th><th>ขาย (ชิ้น)</th><th>รายได้</th><th>สต็อกเหลือ</th></tr></thead><tbody>
+    ${d.top_sellers.map((it,i)=>`<tr><td>${i+1}</td><td>${it.itemname}</td><td><b>${it.sold_qty}</b></td><td>฿${Number(it.revenue).toLocaleString()}</td><td>${it.stock}</td></tr>`).join("")}
+    </tbody></table>`;
+  }
+
+  if (d.dead_stock.length) {
+    html += `<h4 style="color:#6b7280;margin:16px 0 8px">🧊 ค้างสต็อก (ไม่ขายใน 30 วัน)</h4>
+    <table class="data-table"><thead><tr><th>สินค้า</th><th>สต็อก</th><th>หน่วย</th><th>ขายล่าสุด</th></tr></thead><tbody>
+    ${d.dead_stock.map(it=>`<tr><td>${it.itemname}</td><td>${it.stock}</td><td>${it.unit}</td><td style="color:var(--muted)">${it.last_sold}</td></tr>`).join("")}
+    </tbody></table>`;
+  }
+
+  html += `<p style="color:var(--muted);font-size:11px;margin-top:16px">สร้างเมื่อ ${d.generated_at}</p>`;
+  document.getElementById("agentContent").innerHTML = html;
+}
+
 function syncSheets() {
   const btn = document.getElementById("syncBtn");
   btn.disabled = true;

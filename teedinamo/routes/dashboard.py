@@ -34,6 +34,15 @@ def api_top():
     return jsonify([dict(i) for i in items])
 
 
+@dashboard_bp.route("/api/agent/stock")
+@login_required
+def api_stock_agent():
+    import sys, os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from stock_agent import get_stock_report
+    return jsonify(get_stock_report())
+
+
 @dashboard_bp.route("/api/gsheet/sync", methods=["POST"])
 @login_required
 def api_gsheet_sync():

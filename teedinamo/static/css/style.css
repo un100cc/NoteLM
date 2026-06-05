@@ -205,6 +205,27 @@ body {
 .qty  { font-size: 12px; color: var(--muted); }
 .rev  { font-size: 13px; font-weight: 600; color: var(--success); }
 
+/* ─── Stock Filter ─── */
+.filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.state-tabs { display: flex; gap: 6px; }
+.state-tab {
+  padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border);
+  background: #f5f5f5; cursor: pointer; font-size: 13px; transition: all .15s;
+}
+.state-tab:hover { background: #e8edf5; }
+.state-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.stock-stats { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.stat-chip {
+  padding: 5px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;
+  font-weight: 600; border: 1px solid var(--border); transition: opacity .15s;
+}
+.stat-chip:hover { opacity: .75; }
+.stat-chip.all { background: #f0f0f0; color: #333; }
+.stat-chip.ok  { background: #d4edda; color: #155724; }
+.stat-chip.low { background: #fff3cd; color: #856404; }
+.stat-chip.out { background: #f8d7da; color: #721c24; }
+.row-out td { background: #fff0f0 !important; }
+
 /* ─── Stock Table ─── */
 .search-input {
   width: 100%; padding: 10px 14px; border: 1px solid var(--border);
