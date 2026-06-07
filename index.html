@@ -353,6 +353,26 @@ function drawPatterns(candles, mainChart, cs){
     m2s.setData([{time:p.M1end.time,value:p.M1end.value},{time:p.M2low.time,value:p.M2low.value}]);
     patSeries.push(m2s);
 
+    // ── Fib 33.3% — เขียว ──
+    const f33s = mainChart.addLineSeries({color:'#4ade80',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    f33s.setData([{time:p.M1start.time,value:p.fib333},{time:lastTime,value:p.fib333}]);
+    patSeries.push(f33s);
+
+    // ── Fib 50% — เหลือง หนา (Golden Zone) ──
+    const f50s = mainChart.addLineSeries({color:'#facc15',lineWidth:2,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    f50s.setData([{time:p.M1start.time,value:p.fib500},{time:lastTime,value:p.fib500}]);
+    patSeries.push(f50s);
+
+    // ── Fib 61.8% — ส้ม ──
+    const f61s = mainChart.addLineSeries({color:'#fb923c',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    f61s.setData([{time:p.M1start.time,value:p.fib618},{time:lastTime,value:p.fib618}]);
+    patSeries.push(f61s);
+
+    // ── M3 Target — ฟ้า dotted ──
+    const m3s = mainChart.addLineSeries({color:C.m3,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    m3s.setData([{time:p.M1start.time,value:p.M3target},{time:lastTime,value:p.M3target}]);
+    patSeries.push(m3s);
+
     // ── Markers บน candlestick ──
     allMarkers.push({time:p.M1start.time, position:isUp?'belowBar':'aboveBar', color:C.m1, shape:'circle', size:2, text:'M1'});
     allMarkers.push({time:p.M1end.time,   position:isUp?'aboveBar':'belowBar', color:C.m1, shape:'circle', size:2, text:''});
