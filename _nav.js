@@ -3,6 +3,7 @@ const NAV_PAGES = [
   { label:'Dashboard', href:'index.html' },
   { label:'Scanner',   href:'scanner.html' },
   { label:'Watchlist', href:'watchlist.html' },
+  { label:'Log',       href:'log.html' },
   { label:'Strategy',  href:'strategy.html' },
 ];
 

@@ -37,6 +37,8 @@
 .rsi-mini{margin:8px 0;}
 .rsi-mini-track{background:var(--bg3);border-radius:3px;height:4px;}
 .rsi-mini-fill{height:100%;border-radius:3px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:.7}}
 </style>
 </head>
 <body>
@@ -45,7 +47,7 @@
   <nav class="topbar-nav" id="topbar-nav"></nav>
   <div class="topbar-right">
     <div class="badge-live"><div class="dot"></div>Live · Binance</div>
-    <button class="btn btn-ghost" onclick="fetchPrices()">⟳ Refresh</button>
+    <button class="btn btn-ghost" onclick="scanAll()">⟳ Refresh</button>
   </div>
 </header>
 <div class="market-bar" id="market-bar" style="position:fixed;top:52px;left:0;right:0;z-index:99;"></div>
@@ -113,62 +115,93 @@ let liveData = {}, activeFilter = 'all', isLoading = false;
 function fmt(p){return p>=1000?'$'+p.toLocaleString('en',{maximumFractionDigits:2}):p>=1?'$'+p.toFixed(3):'$'+p.toFixed(6);}
 
 // ─── Determine 3 Swings setup from live analysis ───
-function getSetup(ana, candles) {
+function getSetup(ana) {
   if(!ana||ana.error) return {setup:'–',label:'–',color:'#8b949e',m1:'–',m2:'–',m3:'–',m1c:'#484f58',m2c:'#484f58',m3c:'#484f58',ana:'ไม่มีข้อมูล'};
-  const rsi = ana.rsi?.value||50;
-  const macdH = ana.macd?.histogram||0;
-  const bias = ana.timeframe_context?.bias||'Neutral';
-  const bbPos = ana.bollinger_bands?.position||'';
-  const adx = ana.adx?.value||0;
-  const rsiDir = ana.rsi?.direction||'Flat';
+  const rsi    = ana.rsi?.value || 50;
+  const macdH  = ana.macd?.histogram || 0;
+  const bias   = ana.timeframe_context?.bias || 'Neutral';
+  const bbPos  = ana.bollinger_bands?.position || '';
+  const adx    = ana.adx?.value || 0;
+  const rsiDir = ana.rsi?.direction || 'Flat';
+  const diSig  = ana.adx?.di_signal || '';
 
-  // 3 Swings logic
-  // M3 Bullish: bias Bullish + RSI>50 + MACD>0 + BB Upper Half
-  if(bias==='Bullish' && rsi>50 && macdH>0 && bbPos.includes('Upper')) {
-    return {setup:'m3',label:'📈 M3 — Bullish',color:'#3fb950',m1:'▼',m2:'✅',m3:'▲',m1c:'#f85149',m2c:'#3fb950',m3c:'#3fb950',
-      ana:`Bias Bullish · RSI ${rsi.toFixed(1)} > 50 · MACD Hist ✅ · BB Upper Half → M3 กำลังเริ่ม`};
+  // ✅ BUY — M3 confirmed + strong momentum (Best setup)
+  // Bullish bias + RSI > 55 + MACD > 0 + BB Upper Half + +DI > -DI
+  if(bias==='Bullish' && rsi>55 && macdH>0 && bbPos.includes('Upper') && diSig.includes('+DI > -DI')) {
+    return {setup:'buy',label:'🟢 BUY Signal',color:'#3fb950',m1:'▼',m2:'✅',m3:'▲',m1c:'#f85149',m2c:'#3fb950',m3c:'#3fb950',
+      ana:`✅ Bias Bullish · RSI ${rsi.toFixed(1)} > 55 · MACD Hist +${macdH.toFixed(4)} · BB Upper · +DI > -DI → ยืนยัน M3`};
   }
-  // Shock Retest: MACD just turned Bullish + RSI 38-52 Rising (M2 จบ รอ Retest)
+  // 📈 M3 — Bullish setup (momentum building)
+  if(bias==='Bullish' && rsi>50 && macdH>0) {
+    return {setup:'m3',label:'📈 M3 Setup',color:'#3fb950',m1:'▼',m2:'✅',m3:'▲',m1c:'#f85149',m2c:'#3fb950',m3c:'#3fb950',
+      ana:`Bias Bullish · RSI ${rsi.toFixed(1)} > 50 · MACD Hist ✅ → M3 กำลังเริ่ม`};
+  }
+  // 🔥 Shock Retest — MACD พลิก Bullish + RSI 35–55 Rising (M2 จบ รอ entry)
   if(macdH>0 && rsiDir==='Rising' && rsi>=35 && rsi<=55) {
-    const retestZone = ana.bollinger_bands?.lower||0;
-    return {setup:'shock',label:'🔥 Shock Retest Zone',color:'#f59e0b',m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#f59e0b',m3c:'#388bfd',
-      ana:`MACD Hist Bullish +${macdH.toFixed(4)} · RSI ${rsi.toFixed(1)} Rising → M2 ใกล้จบ รอ Retest Fib Zone`};
+    return {setup:'shock',label:'🔥 Shock Retest',color:'#f59e0b',m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#f59e0b',m3c:'#388bfd',
+      ana:`MACD Hist +${macdH.toFixed(4)} · RSI ${rsi.toFixed(1)} Rising → M2 ใกล้จบ รอ Retest Fib Zone ⚡`};
   }
-  // M2 Pullback: bearish bias but MACD starting to turn
-  if(bias==='Bearish' && macdH>0 && rsi<55) {
-    return {setup:'m2',label:'📊 M2 Pullback',color:'#58a6ff',m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',
-      ana:`Bias Bearish · MACD พลิก Bullish · RSI ${rsi.toFixed(1)} · รอ Shock ผ่าน EMA30`};
-  }
-  // Strong Bear: RSI falling + ADX strong + bearish
+  // ⚠️ Strong Bear — RSI Falling + ADX แข็งแกร่ง + Bearish bias (ต้องเช็คก่อน M2)
   if(bias==='Bearish' && rsiDir==='Falling' && adx>40) {
     return {setup:'bear',label:'⚠️ Strong Bear',color:'#f85149',m1:'▼',m2:'▼',m3:'❓',m1c:'#f85149',m2c:'#f85149',m3c:'#484f58',
       ana:`Bias Bearish · ADX ${adx} Strong · RSI ${rsi.toFixed(1)} Falling · ยังไม่ใช่เวลาเข้า Long`};
   }
-  // Neutral/Ranging
+  // 📊 M2 Pullback — MACD เริ่มพลิก (fallback หลัง Bear)
+  if(macdH>0 && rsi<55) {
+    return {setup:'m2',label:'📊 M2 Pullback',color:'#58a6ff',m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',
+      ana:`MACD พลิก Bullish · RSI ${rsi.toFixed(1)} · รอ Shock ผ่าน EMA30 ก่อน entry`};
+  }
+  // Default: Sideways / Ranging
   return {setup:'m2',label:'📊 Sideways',color:'#8b949e',m1:'–',m2:'⏸',m3:'–',m1c:'#484f58',m2c:'#d29922',m3c:'#484f58',
-    ana:`RSI ${rsi.toFixed(1)} · Sideways · รอ Breakout ชัดก่อน`};
+    ana:`RSI ${rsi.toFixed(1)} · Sideways · รอ Breakout พร้อม Volume ชัดก่อน`};
+}
+
+// ─── Batch fetch helper (กัน Binance rate limit) ───
+async function fetchBatch(items, fn, batchSize=5, delayMs=300) {
+  const results = [];
+  for(let i=0; i<items.length; i+=batchSize) {
+    const batch = items.slice(i, i+batchSize);
+    const res = await Promise.all(batch.map(fn));
+    results.push(...res);
+    if(i+batchSize < items.length) await new Promise(r=>setTimeout(r, delayMs));
+  }
+  return results;
 }
 
 // ─── Scan all coins live ───
 async function scanAll() {
   if(isLoading) return;
   isLoading = true;
+
+  // แสดง skeleton cards ทันที (ครบ 20 ตัว) ก่อนโหลดข้อมูล
   const el = document.getElementById('coin-grid');
-  el.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text2)">
-    <div style="width:32px;height:32px;border:2px solid #21262d;border-top-color:#58a6ff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>
-    <div style="font-size:13px">กำลัง Scan ${COINS.length} เหรียญ จาก Binance...</div>
-  </div>`;
+  el.innerHTML = COINS.map(c=>`
+    <div class="coin-card" style="opacity:.4;pointer-events:none">
+      <div class="cc-top">
+        <div class="cc-left">
+          <div class="cc-icon" style="background:${c.color}25;color:${c.color}">${c.n}</div>
+          <div><div class="cc-sym">${c.n}</div><div class="cc-full" style="color:var(--text3)">กำลังโหลด...</div></div>
+        </div>
+        <div class="cc-price"><div class="cc-p" style="color:var(--text3)">– –</div></div>
+      </div>
+      <div style="height:80px;background:var(--bg3);border-radius:6px;margin-top:8px;animation:pulse 1.5s ease-in-out infinite"></div>
+    </div>`).join('');
 
-  // ดึงราคา + analysis พร้อมกันทุกเหรียญ
-  const [priceRes, ...anaRes] = await Promise.all([
-    fetch(`${API}/prices?symbols=${COINS.map(c=>c.s).join(',')}`).then(r=>r.json()).catch(()=>[]),
-    ...COINS.map(c=>fetch(`${API}/analysis/${c.s}?tf=1h`).then(r=>r.json()).catch(()=>null))
-  ]);
+  // 1) ดึงราคาทั้ง 20 ครั้งเดียว (Binance รองรับ batch)
+  try {
+    const syms = COINS.map(c=>c.s).join(',');
+    const priceRes = await fetch(`${API}/prices?symbols=${syms}`).then(r=>r.json()).catch(()=>[]);
+    priceRes.forEach(d=>{ liveData[d.symbol] = {...(liveData[d.symbol]||{}), p:+d.lastPrice, chg:+d.priceChangePercent}; });
+  } catch(e) {}
 
-  // Map prices
-  priceRes.forEach(d=>{liveData[d.symbol]={p:+d.lastPrice,chg:+d.priceChangePercent};});
-  // Map analysis
-  COINS.forEach((c,i)=>{if(anaRes[i])liveData[c.s]={...liveData[c.s],ana:anaRes[i]};});
+  // 2) ดึง analysis ทีละ 5 กัน rate limit
+  const anaRes = await fetchBatch(COINS, c =>
+    fetch(`${API}/analysis/${c.s}?tf=1h`).then(r=>r.json()).catch(()=>null)
+  , 5, 300);
+
+  COINS.forEach((c,i)=>{
+    if(anaRes[i] && !anaRes[i].error) liveData[c.s] = {...(liveData[c.s]||{}), ana:anaRes[i]};
+  });
 
   fetchMarketBar();
   buildCards();
@@ -177,7 +210,7 @@ async function scanAll() {
 
 function buildCards() {
   const el = document.getElementById('coin-grid'); el.innerHTML = '';
-  const counts = {m3:0,shock:0,m2:0,bear:0};
+  const counts = {buy:0,m3:0,shock:0,m2:0,bear:0};
 
   COINS.forEach((c,i) => {
     const pd  = liveData[c.s]||{};
@@ -246,7 +279,7 @@ function buildCards() {
 
   // Update counts
   const total = Object.values(counts).reduce((a,b)=>a+b,0);
-  document.getElementById('cnt-buy').textContent  = counts.m3||0;
+  document.getElementById('cnt-buy').textContent  = counts.buy||0;
   document.getElementById('cnt-m3').textContent   = counts.m3||0;
   document.getElementById('cnt-shock').textContent= counts.shock||0;
   document.getElementById('cnt-m2').textContent   = counts.m2||0;

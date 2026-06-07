@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>KLAUD · Trade Log</title>
+<link rel="stylesheet" href="_shared.css"/>
+<style>
+body{padding-top:52px;}
+.market-bar{height:32px;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0;overflow:hidden;padding:0 8px;}
+.market-ticker{display:flex;align-items:center;gap:5px;padding:0 10px;border-right:1px solid var(--border);font-size:11px;white-space:nowrap;}
+.mt-sym{color:var(--text2);font-weight:700;}
+.mt-price{color:var(--text1);font-family:'JetBrains Mono',monospace;}
+.mt-chg.up{color:var(--green);}.mt-chg.dn{color:var(--red);}
+
+.page{max-width:1100px;margin:0 auto;padding:24px 16px;}
+.page-title{font-size:20px;font-weight:800;margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--text2);margin-bottom:24px;}
+
+/* ADD FORM */
+.log-form{background:var(--bg1);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;}
+.form-row{display:grid;grid-template-columns:120px 90px 90px 1fr 120px 110px auto;gap:10px;align-items:end;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+.form-input{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:12px;color:var(--text1);outline:none;width:100%;font-family:'Inter',sans-serif;}
+.form-input:focus{border-color:var(--blue);}
+select.form-input option{background:var(--bg2);}
+.btn-add{background:var(--blue);color:#fff;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;height:36px;}
+.btn-add:hover{opacity:.85;}
+
+/* FILTERS */
+.filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.filter-btn{padding:5px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .15s;}
+.filter-btn.active,.filter-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-dim);}
+.filter-search{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:5px 13px;font-size:12px;color:var(--text1);outline:none;width:160px;}
+.filter-search:focus{border-color:var(--blue);}
+.summary-chips{margin-left:auto;display:flex;gap:8px;}
+.chip{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;}
+.chip.green{background:#3fb95020;color:var(--green);border:1px solid #3fb95040;}
+.chip.red{background:#f8514920;color:var(--red);border:1px solid #f8514940;}
+.chip.blue{background:var(--blue-dim);color:var(--blue);border:1px solid #58a6ff40;}
+
+/* TABLE */
+.log-table{width:100%;border-collapse:separate;border-spacing:0 6px;}
+.log-table th{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:0 12px 4px;text-align:left;}
+.log-row{background:var(--bg1);border-radius:8px;transition:background .15s;}
+.log-row:hover{background:var(--bg2);}
+.log-row td{padding:10px 12px;font-size:12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.log-row td:first-child{border-left:1px solid var(--border);border-radius:8px 0 0 8px;padding-left:16px;}
+.log-row td:last-child{border-right:1px solid var(--border);border-radius:0 8px 8px 0;}
+.badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge.buy{background:#3fb95020;color:var(--green);border:1px solid #3fb95040;}
+.badge.sell{background:#f8514920;color:var(--red);border:1px solid #f8514940;}
+.badge.watch{background:#d2992220;color:var(--yellow);border:1px solid #d2992240;}
+.pnl-pos{color:var(--green);font-weight:700;font-family:'JetBrains Mono',monospace;}
+.pnl-neg{color:var(--red);font-weight:700;font-family:'JetBrains Mono',monospace;}
+.pnl-zero{color:var(--text2);font-family:'JetBrains Mono',monospace;}
+.mono{font-family:'JetBrains Mono',monospace;}
+.del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;transition:all .15s;}
+.del-btn:hover{color:var(--red);background:#f8514915;}
+.empty-state{text-align:center;padding:60px 0;color:var(--text3);}
+.empty-state .icon{font-size:40px;margin-bottom:12px;}
+.empty-state p{font-size:14px;}
+
+/* STATS BAR */
+.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+.stat-card{background:var(--bg1);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.stat-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.stat-value{font-size:20px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.stat-value.green{color:var(--green);}
+.stat-value.red{color:var(--red);}
+.stat-value.blue{color:var(--blue);}
+.stat-value.yellow{color:var(--yellow);}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a class="topbar-logo" href="/">
+    <div class="logo-icon">K</div>
+    <div class="logo-text">KLAUD<span>.</span></div>
+  </a>
+  <nav class="topbar-nav" id="topbar-nav"></nav>
+  <div class="topbar-right">
+    <div class="badge-live"><div class="dot"></div>LIVE</div>
+  </div>
+</div>
+<div class="market-bar" id="market-bar"></div>
+
+<div class="page">
+  <div class="page-title">📋 Trade Log</div>
+  <div class="page-sub">บันทึกการเทรด · วิเคราะห์ผลตาม 3 Swings Strategy</div>
+
+  <!-- STATS -->
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-card"><div class="stat-label">Total Trades</div><div class="stat-value blue" id="st-total">0</div></div>
+    <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value green" id="st-wr">0%</div></div>
+    <div class="stat-card"><div class="stat-label">Total PnL</div><div class="stat-value" id="st-pnl">$0</div></div>
+    <div class="stat-card"><div class="stat-label">Avg RR</div><div class="stat-value yellow" id="st-rr">–</div></div>
+    <div class="stat-card"><div class="stat-label">Best Trade</div><div class="stat-value green" id="st-best">–</div></div>
+  </div>
+
+  <!-- ADD FORM -->
+  <div class="log-form">
+    <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;">+ เพิ่ม Trade</div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Symbol</div>
+        <input id="f-sym" class="form-input" placeholder="BTCUSDT" oninput="this.value=this.value.toUpperCase()"/>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Action</div>
+        <select id="f-action" class="form-input">
+          <option value="BUY">BUY</option>
+          <option value="SELL">SELL</option>
+          <option value="WATCH">WATCH</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Setup</div>
+        <select id="f-setup" class="form-input">
+          <option value="M2 Retest">M2 Retest</option>
+          <option value="Shock">Shock ⚡</option>
+          <option value="M3 Target">M3 Target</option>
+          <option value="Breakout">Breakout</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Entry Price</div>
+        <input id="f-entry" class="form-input" type="number" step="any" placeholder="0.00"/>
+      </div>
+      <div class="form-group">
+        <div class="form-label">TP / SL</div>
+        <input id="f-tp" class="form-input" type="number" step="any" placeholder="TP"/>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Exit / PnL%</div>
+        <input id="f-exit" class="form-input" type="number" step="any" placeholder="Exit หรือ PnL%"/>
+      </div>
+      <div class="form-group">
+        <div class="form-label">&nbsp;</div>
+        <button class="btn-add" onclick="addLog()">+ บันทึก</button>
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <input id="f-note" class="form-input" placeholder="หมายเหตุ (เหตุผล, TF, Setup note...)"/>
+    </div>
+    <div id="form-msg" style="font-size:11px;margin-top:6px;height:14px;"></div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('ALL',this)">ทั้งหมด</button>
+    <button class="filter-btn" onclick="setFilter('BUY',this)">BUY</button>
+    <button class="filter-btn" onclick="setFilter('SELL',this)">SELL</button>
+    <button class="filter-btn" onclick="setFilter('WIN',this)">กำไร ✅</button>
+    <button class="filter-btn" onclick="setFilter('LOSS',this)">ขาดทุน ❌</button>
+    <button class="filter-btn" onclick="setFilter('OPEN',this)">Open 📌</button>
+    <input class="filter-search" id="search-input" placeholder="🔍 ค้นหา symbol..." oninput="renderTable()"/>
+    <div class="summary-chips">
+      <span class="chip green" id="chip-win">0W</span>
+      <span class="chip red" id="chip-loss">0L</span>
+      <span class="chip blue" id="chip-open">0 Open</span>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <table class="log-table">
+    <thead>
+      <tr>
+        <th>วันที่</th>
+        <th>Symbol</th>
+        <th>Action</th>
+        <th>Setup</th>
+        <th style="text-align:right">Entry</th>
+        <th style="text-align:right">TP</th>
+        <th style="text-align:right">Exit</th>
+        <th style="text-align:right">PnL</th>
+        <th>หมายเหตุ</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="log-tbody"></tbody>
+  </table>
+  <div id="empty-state" class="empty-state" style="display:none;">
+    <div class="icon">📋</div>
+    <p>ยังไม่มีรายการ — กด + บันทึก เพื่อเพิ่ม trade แรก</p>
+  </div>
+</div>
+
+<script src="_nav.js"></script>
+<script>
+buildNav('Log');
+fetchMarketBar();
+setInterval(fetchMarketBar, 30000);
+
+const LOG_KEY = 'klaud_trade_log';
+let filterMode = 'ALL';
+
+function loadLogs(){ try{ return JSON.parse(localStorage.getItem(LOG_KEY)||'[]'); }catch{ return []; } }
+function saveLogs(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
+
+function addLog(){
+  const sym    = document.getElementById('f-sym').value.trim().toUpperCase();
+  const action = document.getElementById('f-action').value;
+  const setup  = document.getElementById('f-setup').value;
+  const entry  = parseFloat(document.getElementById('f-entry').value)||null;
+  const tp     = parseFloat(document.getElementById('f-tp').value)||null;
+  const exit   = parseFloat(document.getElementById('f-exit').value)||null;
+  const note   = document.getElementById('f-note').value.trim();
+  const msg    = document.getElementById('form-msg');
+
+  if(!sym){ msg.style.color='#f85149'; msg.textContent='กรอก Symbol ก่อน'; return; }
+
+  // คำนวณ PnL% ถ้ามี entry + exit
+  let pnl = null;
+  if(entry && exit){
+    if(action==='BUY')  pnl = ((exit-entry)/entry*100);
+    if(action==='SELL') pnl = ((entry-exit)/entry*100);
+  } else if(exit && !entry){
+    // ถ้ากรอกแค่ PnL% โดยตรง
+    pnl = exit;
+  }
+
+  const log = {
+    id: Date.now(),
+    date: new Date().toISOString(),
+    sym, action, setup,
+    entry, tp, exit: (entry&&exit)?exit:null,
+    pnl,
+    note
+  };
+
+  const arr = loadLogs();
+  arr.unshift(log);
+  saveLogs(arr);
+  // clear form
+  ['f-sym','f-entry','f-tp','f-exit','f-note'].forEach(id=>document.getElementById(id).value='');
+  msg.style.color='#3fb950'; msg.textContent='✅ บันทึกแล้ว';
+  setTimeout(()=>msg.textContent='', 2000);
+  renderTable(); updateStats();
+}
+
+function delLog(id){
+  if(!confirm('ลบรายการนี้?')) return;
+  saveLogs(loadLogs().filter(l=>l.id!==id));
+  renderTable(); updateStats();
+}
+
+function setFilter(mode, el){
+  filterMode = mode;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderTable();
+}
+
+function fmtPrice(v){ if(v==null) return '–'; return v>=1000?v.toLocaleString('en',{maximumFractionDigits:2}):v>=1?v.toFixed(4):v.toFixed(6); }
+function fmtDate(iso){ const d=new Date(iso); return d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})+' '+d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}); }
+
+function renderTable(){
+  const search = document.getElementById('search-input').value.trim().toUpperCase();
+  let logs = loadLogs();
+
+  // filter
+  logs = logs.filter(l=>{
+    if(search && !l.sym.includes(search)) return false;
+    if(filterMode==='BUY')  return l.action==='BUY';
+    if(filterMode==='SELL') return l.action==='SELL';
+    if(filterMode==='WIN')  return l.pnl!=null && l.pnl>0;
+    if(filterMode==='LOSS') return l.pnl!=null && l.pnl<0;
+    if(filterMode==='OPEN') return l.pnl==null;
+    return true;
+  });
+
+  const tbody = document.getElementById('log-tbody');
+  const empty = document.getElementById('empty-state');
+  tbody.innerHTML='';
+  empty.style.display = logs.length?'none':'block';
+
+  logs.forEach(l=>{
+    const pnlHtml = l.pnl==null
+      ? `<span class="pnl-zero">Open 📌</span>`
+      : l.pnl>0 ? `<span class="pnl-pos">+${l.pnl.toFixed(2)}%</span>`
+      : `<span class="pnl-neg">${l.pnl.toFixed(2)}%</span>`;
+    const tr = document.createElement('tr');
+    tr.className='log-row';
+    tr.innerHTML=`
+      <td style="color:var(--text2);white-space:nowrap">${fmtDate(l.date)}</td>
+      <td style="font-weight:800;color:var(--text1)">${l.sym}</td>
+      <td><span class="badge ${l.action.toLowerCase()}">${l.action}</span></td>
+      <td style="color:var(--text2);font-size:11px">${l.setup}</td>
+      <td style="text-align:right" class="mono">${fmtPrice(l.entry)}</td>
+      <td style="text-align:right;color:var(--green)" class="mono">${fmtPrice(l.tp)}</td>
+      <td style="text-align:right;color:var(--text2)" class="mono">${fmtPrice(l.exit)}</td>
+      <td style="text-align:right">${pnlHtml}</td>
+      <td style="color:var(--text2);font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.note}">${l.note||'–'}</td>
+      <td><button class="del-btn" onclick="delLog(${l.id})">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateStats(){
+  const all = loadLogs();
+  const closed = all.filter(l=>l.pnl!=null);
+  const wins   = closed.filter(l=>l.pnl>0);
+  const losses = closed.filter(l=>l.pnl<0);
+  const open   = all.filter(l=>l.pnl==null);
+  const totalPnl = closed.reduce((s,l)=>s+l.pnl,0);
+  const wr = closed.length ? (wins.length/closed.length*100).toFixed(1)+'%' : '–';
+  const best = wins.length ? Math.max(...wins.map(l=>l.pnl)).toFixed(2)+'%' : '–';
+
+  // Avg RR (TP/SL implied) — คำนวณจาก entry/tp/exit
+  let rrArr = [];
+  closed.forEach(l=>{ if(l.entry&&l.tp&&l.exit){ const rwd=Math.abs(l.tp-l.entry); const rsk=Math.abs(l.exit-l.entry); if(rsk>0) rrArr.push(rwd/rsk); } });
+  const avgRR = rrArr.length ? (rrArr.reduce((a,b)=>a+b,0)/rrArr.length).toFixed(2) : '–';
+
+  document.getElementById('st-total').textContent = all.length;
+  document.getElementById('st-wr').textContent    = wr;
+  const pnlEl = document.getElementById('st-pnl');
+  pnlEl.textContent = (totalPnl>=0?'+':'')+totalPnl.toFixed(2)+'%';
+  pnlEl.className   = 'stat-value '+(totalPnl>=0?'green':'red');
+  document.getElementById('st-rr').textContent   = avgRR;
+  document.getElementById('st-best').textContent = best;
+  document.getElementById('chip-win').textContent  = wins.length+'W';
+  document.getElementById('chip-loss').textContent = losses.length+'L';
+  document.getElementById('chip-open').textContent = open.length+' Open';
+}
+
+// init
+renderTable();
+updateStats();
+</script>
+</body>
+</html>

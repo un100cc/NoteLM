@@ -114,10 +114,11 @@
             <div style="font-size:11px;font-weight:700;margin-top:1px" id="cc-chg">–</div>
           </div>
           <div class="tf-row">
-            <button class="tf-btn" onclick="changeTF('15m',this)">15m</button>
-            <button class="tf-btn active" onclick="changeTF('1h',this)">1H</button>
+            <button class="tf-btn" onclick="changeTF('1h',this)">1H</button>
             <button class="tf-btn" onclick="changeTF('4h',this)">4H</button>
-            <button class="tf-btn" onclick="changeTF('1d',this)">1D</button>
+            <button class="tf-btn active" onclick="changeTF('1d',this)">1D</button>
+            <button class="tf-btn" onclick="changeTF('1w',this)">1W</button>
+            <button class="tf-btn" onclick="changeTF('1M',this)">1M</button>
             <div class="ptogs">
               <button class="ptog p123 on" id="tog123" onclick="toggleP('123')">3 Swings</button>
             </div>
@@ -165,7 +166,7 @@
 <script src="_nav.js"></script>
 <script>
 const API='http://localhost:3000/api';
-const COINS=[
+const DEFAULT_COINS=[
   {s:'BTCUSDT', n:'BTC', full:'Bitcoin',     color:'#f7931a'},
   {s:'ETHUSDT', n:'ETH', full:'Ethereum',    color:'#627eea'},
   {s:'STXUSDT', n:'STX', full:'Stacks',      color:'#9d8fff'},
@@ -177,7 +178,34 @@ const COINS=[
   {s:'AVAXUSDT',n:'AVAX',full:'Avalanche',   color:'#e84142'},
   {s:'DOTUSDT', n:'DOT', full:'Polkadot',    color:'#e6007a'},
 ];
-let idx=0,tf='1h',chartMain=null,chartRSI=null,tvData={};
+// โหลด custom coins จาก localStorage
+const CUSTOM_KEY='klaud_custom_coins';
+function loadSaved(){try{return JSON.parse(localStorage.getItem(CUSTOM_KEY)||'[]');}catch{return[];}}
+function saveCoin(c){const arr=loadSaved();if(!arr.find(x=>x.s===c.s)){arr.push(c);localStorage.setItem(CUSTOM_KEY,JSON.stringify(arr));}}
+function removeSavedCoin(s){const arr=loadSaved().filter(x=>x.s!==s);localStorage.setItem(CUSTOM_KEY,JSON.stringify(arr));}
+const COLORS=['#06b6d4','#8b5cf6','#ec4899','#10b981','#f97316','#6366f1','#14b8a6','#f43f5e','#a855f7','#22d3ee'];
+let colorIdx=0;
+const COINS=[...DEFAULT_COINS,...loadSaved()];
+
+async function addCoin(){
+  const input=document.getElementById('coin-input');
+  const msg=document.getElementById('add-msg');
+  let sym=input.value.trim().toUpperCase();
+  if(!sym){msg.style.color='#f85149';msg.textContent='กรอก symbol ก่อน';return;}
+  if(!sym.endsWith('USDT')&&!sym.endsWith('BTC')&&!sym.endsWith('ETH'))sym+='USDT';
+  if(COINS.find(c=>c.s===sym)){msg.style.color='#d29922';msg.textContent=sym+' มีอยู่แล้ว';return;}
+  msg.style.color='var(--text2)';msg.textContent='⏳ ตรวจสอบ...';
+  try{
+    const r=await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
+    if(!r.ok)throw new Error('ไม่พบ symbol นี้บน Binance');
+    const name=sym.replace('USDT','').replace('BTC','').replace('ETH','');
+    const coin={s:sym,n:name,full:name,color:COLORS[colorIdx++%COLORS.length],custom:true};
+    COINS.push(coin);saveCoin(coin);input.value='';
+    msg.style.color='#3fb950';msg.textContent='✅ เพิ่ม '+sym+' แล้ว';
+    buildSidebar();setTimeout(()=>{msg.textContent='';},3000);
+  }catch(e){msg.style.color='#f85149';msg.textContent='❌ '+e.message;}
+}
+let idx=0,tf='1d',chartMain=null,chartRSI=null,tvData={};
 let show123=true,showABC=true;
 let patSeries=[];
 
@@ -187,7 +215,7 @@ function calcRSIArr(closes,p=14){let g=0,l=0;for(let i=1;i<=p;i++){const d=close
 function calcBBArr(closes,p=20,m=2){return closes.map((_,i)=>{if(i<p-1)return null;const sl=closes.slice(i-p+1,i+1),avg=sl.reduce((a,b)=>a+b,0)/p,std=Math.sqrt(sl.reduce((a,b)=>a+(b-avg)**2,0)/p);return{upper:avg+m*std,lower:avg-m*std};});}
 
 // ─── SWING DETECTION ───
-function swingLB(){return tf==='1d'?10:tf==='4h'?7:tf==='1h'?5:3;}
+function swingLB(){return tf==='1M'?3:tf==='1w'?4:tf==='1d'?10:tf==='4h'?7:5;}
 function findSwings(candles){
   const lb=swingLB(),highs=[],lows=[];
   for(let i=lb;i<candles.length-lb;i++){
@@ -208,63 +236,70 @@ function findSwings(candles){
 //   M3 Target = 100% of M1 from M2 low
 
 function detect3Swings(candles, highs, lows) {
-  const setups = [];
+  const bullSetups = [];
+  const bearSetups = [];
+  const lastClose  = candles[candles.length-1].close;
 
   // ── Bullish 3 Swings ──
-  // M1: swing_low(start) → swing_high(M1end)
-  // M2: pullback to 33-62% of M1
-  // M3: next push up, target = M1end + M1_length
   for(let i=0; i<lows.length-1; i++){
     const M1start = lows[i];
-    const M1end   = highs.find(h=>h.idx>M1start.idx);
-    if(!M1end) continue;
-    const M1len = M1end.value - M1start.value;
-    if(M1len/M1start.value < 0.03) continue; // M1 ต้องมีนัยสำคัญ >3%
 
-    // หา M2 low — pullback 33-62% ของ M1
-    const M2low = lows.find(l=>l.idx>M1end.idx && l.idx<M1end.idx+40);
+    // [FIX 1] หา swing high ที่สูงสุดใน 60 แท่งหลัง M1start (ไม่ใช่แค่แรกที่เจอ)
+    const hiCandidates = highs.filter(h=>h.idx>M1start.idx && h.idx<M1start.idx+60);
+    if(!hiCandidates.length) continue;
+    const M1end = hiCandidates.reduce((a,b)=>b.value>a.value?b:a);
+
+    const M1len = M1end.value - M1start.value;
+    if(M1len/M1start.value < 0.03) continue;
+    // M1 ต้องใช้เวลาอย่างน้อย 3 แท่ง (ไม่ใช่ spike สั้น)
+    if(M1end.idx - M1start.idx < 3) continue;
+
+    // [FIX 2] ขยาย M2 window เป็น 80 แท่ง
+    const M2low = lows.find(l=>l.idx>M1end.idx && l.idx<M1end.idx+80);
     if(!M2low) continue;
     const retrace = (M1end.value-M2low.value)/M1len;
-    if(retrace<0.28||retrace>0.75) continue;
+    // [FIX 3] Retrace ต้องอยู่ใน 33-65% ตรงตาม strategy
+    if(retrace<0.30||retrace>0.68) continue;
 
-    // คำนวณ Fib levels
     const fib333 = M1end.value - M1len*0.333;
     const fib500 = M1end.value - M1len*0.500;
     const fib618 = M1end.value - M1len*0.618;
-    const retestZoneHi = fib333;
-    const retestZoneLo = fib618;
 
-    // M3 Target = 100% of M1 from M2 low
+    // M3 Target = M2low + M1len (C wave = A wave)
     const M3target = M2low.value + M1len;
 
-    // Shock = ราคาหลัง M2 ที่ทะลุ M1end ขึ้นไป
     const shockCandle = candles.slice(M2low.idx).find(c=>c.close>M1end.value);
 
-    setups.push({
+    bullSetups.push({
       dir:'bull',
       M1start, M1end, M2low,
       fib333, fib500, fib618,
-      retestZoneHi, retestZoneLo,
-      M3target,
-      shockCandle,
-      M1len,
+      retestZoneHi: fib333, retestZoneLo: fib618,
+      M3target, shockCandle, M1len,
       color:'#f59e0b',
       retrace: Math.round(retrace*100),
+      score: M1len/M1start.value, // ใช้ rank setup ที่ significant ที่สุด
     });
   }
 
   // ── Bearish 3 Swings ──
   for(let i=0; i<highs.length-1; i++){
     const M1start = highs[i];
-    const M1end   = lows.find(l=>l.idx>M1start.idx);
-    if(!M1end) continue;
+
+    // [FIX 1] หา swing low ที่ต่ำสุดใน 60 แท่งหลัง M1start
+    const loCandidates = lows.filter(l=>l.idx>M1start.idx && l.idx<M1start.idx+60);
+    if(!loCandidates.length) continue;
+    const M1end = loCandidates.reduce((a,b)=>b.value<a.value?b:a);
+
     const M1len = M1start.value - M1end.value;
     if(M1len/M1start.value < 0.03) continue;
+    if(M1end.idx - M1start.idx < 3) continue;
 
-    const M2high = highs.find(h=>h.idx>M1end.idx && h.idx<M1end.idx+40);
+    // [FIX 2] ขยาย M2 window เป็น 80 แท่ง
+    const M2high = highs.find(h=>h.idx>M1end.idx && h.idx<M1end.idx+80);
     if(!M2high) continue;
     const retrace = (M2high.value-M1end.value)/M1len;
-    if(retrace<0.28||retrace>0.75) continue;
+    if(retrace<0.30||retrace>0.68) continue;
 
     const fib333 = M1end.value + M1len*0.333;
     const fib500 = M1end.value + M1len*0.500;
@@ -272,21 +307,33 @@ function detect3Swings(candles, highs, lows) {
     const M3target = M2high.value - M1len;
     const shockCandle = candles.slice(M2high.idx).find(c=>c.close<M1end.value);
 
-    setups.push({
+    bearSetups.push({
       dir:'bear',
       M1start, M1end, M2low:M2high,
       fib333, fib500, fib618,
       retestZoneHi: fib618, retestZoneLo: fib333,
-      M3target,
-      shockCandle,
-      M1len,
+      M3target, shockCandle, M1len,
       color:'#f87171',
       retrace: Math.round(retrace*100),
+      score: M1len/M1start.value,
     });
   }
 
-  // Return latest 2 setups
-  return setups.slice(-2);
+  // [FIX 3] แยก Bull/Bear — เลือก setup ที่ significant สุด (score สูงสุด)
+  // แสดงแค่ 1 Bull + 1 Bear ที่ชัดที่สุด ไม่ปนกัน
+  const bestBull = bullSetups.sort((a,b)=>b.score-a.score).slice(0,1);
+  const bestBear = bearSetups.sort((a,b)=>b.score-a.score).slice(0,1);
+
+  // เลือกตาม bias ราคาปัจจุบัน — ถ้าราคาเหนือ M1end ของ bear = bull bias
+  // Return ทั้งคู่ แต่ sort ให้ตรง bias ก่อน
+  const combined = [...bestBull, ...bestBear]
+    .sort((a,b)=> {
+      // setup ที่ M2low ใกล้ปัจจุบันมาที่สุดขึ้นก่อน (most recent)
+      const aRecent = Math.abs(candles.length - a.M2low.idx);
+      const bRecent = Math.abs(candles.length - b.M2low.idx);
+      return aRecent - bRecent;
+    });
+  return combined.slice(0,2);
 }
 
 // ─── DRAW 3 SWINGS — TradingView style ───
@@ -305,52 +352,61 @@ function drawPatterns(candles, mainChart, cs){
     const lastTime = candles[candles.length-1].time;
     const fmtV = v => v>100 ? v.toFixed(2) : v.toFixed(5);
 
-    // ── M1 Line (สีเทา — โครงสร้าง) ──
-    const m1s = mainChart.addLineSeries({color:'#94a3b880',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    // ── สีประจำแต่ละ direction ──
+    const C = isUp ? {
+      m1   : '#60a5fa',   // ฟ้า  — M1 impulse
+      m2   : '#a78bfa',   // ม่วง — M2 pullback
+      shock: '#34d399',   // เขียว — Shock ref line
+      f333 : '#4ade80',   // เขียวสด — Fib 33.3%
+      f500 : '#facc15',   // เหลืองทอง — Fib 50% ★
+      f618 : '#fb923c',   // ส้ม — Fib 61.8%
+      m3   : '#38bdf8',   // ฟ้าอ่อน — M3 Target
+    } : {
+      m1   : '#f87171',   // แดง — M1 impulse
+      m2   : '#c084fc',   // ม่วง — M2 pullback
+      shock: '#f43f5e',   // แดงเข้ม — Shock ref line
+      f333 : '#fb7185',   // ชมพู — Fib 33.3%
+      f500 : '#facc15',   // เหลืองทอง — Fib 50% ★
+      f618 : '#fb923c',   // ส้ม — Fib 61.8%
+      m3   : '#94a3b8',   // เทา — M3 Target (bear)
+    };
+
+    // ── M1 Line — impulse move ──
+    const m1s = mainChart.addLineSeries({color:C.m1,lineWidth:3,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     m1s.setData([{time:p.M1start.time,value:p.M1start.value},{time:p.M1end.time,value:p.M1end.value}]);
     patSeries.push(m1s);
 
-    // ── M2 Line (สีเทา) ──
-    const m2s = mainChart.addLineSeries({color:'#94a3b880',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    // ── M2 Line — pullback ──
+    const m2s = mainChart.addLineSeries({color:C.m2,lineWidth:3,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     m2s.setData([{time:p.M1end.time,value:p.M1end.value},{time:p.M2low.time,value:p.M2low.value}]);
     patSeries.push(m2s);
 
-    // ── Fib Retracement Lines (เส้น Retest Zone) ──
-    // 33.3% — สีเขียวอ่อน
-    const f33s = mainChart.addLineSeries({color:'#3fb95088',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    f33s.setData([{time:p.M2low.time,value:p.fib333},{time:lastTime,value:p.fib333}]);
+    // ── Fib 33.3% — เขียว ──
+    const f33s = mainChart.addLineSeries({color:'#4ade80',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    f33s.setData([{time:p.M1start.time,value:p.fib333},{time:lastTime,value:p.fib333}]);
     patSeries.push(f33s);
 
-    // 50% — สีเหลือง (Golden Zone)
-    const f50s = mainChart.addLineSeries({color:'#f59e0b',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    f50s.setData([{time:p.M2low.time,value:p.fib500},{time:lastTime,value:p.fib500}]);
+    // ── Fib 50% — เหลือง หนา (Golden Zone) ──
+    const f50s = mainChart.addLineSeries({color:'#facc15',lineWidth:2,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    f50s.setData([{time:p.M1start.time,value:p.fib500},{time:lastTime,value:p.fib500}]);
     patSeries.push(f50s);
 
-    // 61.8% — สีส้ม
-    const f61s = mainChart.addLineSeries({color:'#fb923c88',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    f61s.setData([{time:p.M2low.time,value:p.fib618},{time:lastTime,value:p.fib618}]);
+    // ── Fib 61.8% — ส้ม ──
+    const f61s = mainChart.addLineSeries({color:'#fb923c',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    f61s.setData([{time:p.M1start.time,value:p.fib618},{time:lastTime,value:p.fib618}]);
     patSeries.push(f61s);
 
-    // ── M3 Target (100% of M1) — สีฟ้า ──
-    const m3s = mainChart.addLineSeries({color:'#58a6ff',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    m3s.setData([{time:p.M2low.time,value:p.M3target},{time:lastTime,value:p.M3target}]);
+    // ── M3 Target — ฟ้า dotted ──
+    const m3s = mainChart.addLineSeries({color:C.m3,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    m3s.setData([{time:p.M1start.time,value:p.M3target},{time:lastTime,value:p.M3target}]);
     patSeries.push(m3s);
 
-    // ── M1 High / M2 Low price lines (จุด Shock reference) ──
-    const shockRef = mainChart.addLineSeries({color:isUp?'#3fb95066':'#f8514966',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    shockRef.setData([{time:p.M1end.time,value:p.M1end.value},{time:lastTime,value:p.M1end.value}]);
-    patSeries.push(shockRef);
-
     // ── Markers บน candlestick ──
-    // M1 Start
-    allMarkers.push({time:p.M1start.time, position:isUp?'belowBar':'aboveBar', color:'#94a3b8', shape:'circle', size:1, text:'M1'});
-    // M1 End (Swing high/low ของ M1)
-    allMarkers.push({time:p.M1end.time, position:isUp?'aboveBar':'belowBar', color:'#94a3b8', shape:'circle', size:1, text:''});
-    // M2 (Retracement end)
-    allMarkers.push({time:p.M2low.time, position:isUp?'belowBar':'aboveBar', color:p.color, shape:'circle', size:2, text:'M2'});
-    // Shock candle
+    allMarkers.push({time:p.M1start.time, position:isUp?'belowBar':'aboveBar', color:C.m1, shape:'circle', size:2, text:'M1'});
+    allMarkers.push({time:p.M1end.time,   position:isUp?'aboveBar':'belowBar', color:C.m1, shape:'circle', size:2, text:''});
+    allMarkers.push({time:p.M2low.time,   position:isUp?'belowBar':'aboveBar', color:C.m2, shape:'circle', size:3, text:'M2'});
     if(p.shockCandle){
-      allMarkers.push({time:p.shockCandle.time, position:isUp?'aboveBar':'belowBar', color:'#ffffff', shape:isUp?'arrowUp':'arrowDown', size:1, text:'⚡'});
+      allMarkers.push({time:p.shockCandle.time, position:isUp?'aboveBar':'belowBar', color:'#facc15', shape:isUp?'arrowUp':'arrowDown', size:2, text:'⚡'});
     }
 
     // ── Pattern Panel info ──
@@ -532,6 +588,61 @@ function updateAnalysisPanel(c,d){
       ${d.support_resistance?.pivot?`<div class="lvl"><div class="lvl-l"><div class="lvl-bar" style="background:#d29922"></div>Pivot</div><div class="lvl-v" style="color:#d29922">${fmt(d.support_resistance.pivot)}</div></div>`:''}
     </div>
 
+    ${(()=>{
+      const ts=d.trade_setup||{};
+      const ep=ts.entry_points||{};
+      const tg=ts.targets||{};
+      const sl=ts.stop_loss;
+      const price=d.price_data?.current_price||d.price_data?.close||0;
+      if(!ep.pullback_entry&&!ep.breakout_entry) return '';
+      const entry=ep.pullback_entry||ep.breakout_entry;
+      const tp1=tg.target_1;
+      const tp2=tg.target_2;
+      const slPct=sl&&entry?Math.abs(((sl-entry)/entry)*100).toFixed(2):null;
+      const tp1Pct=tp1&&entry?Math.abs(((tp1-entry)/entry)*100).toFixed(2):null;
+      const rr=ts.risk_reward?.to_target_1?ts.risk_reward.to_target_1:null;
+      const qual=ts.trade_quality||d.trade_quality||'';
+      const qualColor=qual.includes('Strong')||qual.includes('Good')?'#3fb950':qual.includes('Weak')||qual.includes('Avoid')?'#f85149':'#d29922';
+      const setupBadges=(ts.setup_types||[]).map(s=>`<span style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:10px;color:var(--text2)">${s}</span>`).join('');
+      return `
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:11px;font-weight:800;color:var(--text1)">🎯 จุดเข้า / ออก / SL</span>
+          <span style="font-size:10px;font-weight:700;color:${qualColor}">${qual}</span>
+        </div>
+        ${setupBadges?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">${setupBadges}</div>`:''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          ${ep.pullback_entry?`<div style="background:var(--bg3);border:1px solid #3fb95040;border-radius:7px;padding:8px 10px">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Entry (Pullback)</div>
+            <div style="font-size:14px;font-weight:800;color:#3fb950;font-family:'JetBrains Mono',monospace">${fmt(ep.pullback_entry)}</div>
+          </div>`:''}
+          ${ep.breakout_entry?`<div style="background:var(--bg3);border:1px solid #58a6ff40;border-radius:7px;padding:8px 10px">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Entry (Breakout)</div>
+            <div style="font-size:14px;font-weight:800;color:var(--blue);font-family:'JetBrains Mono',monospace">${fmt(ep.breakout_entry)}</div>
+          </div>`:''}
+          ${sl!=null?`<div style="background:var(--bg3);border:1px solid #f8514940;border-radius:7px;padding:8px 10px">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Stop Loss ${slPct?`(-${slPct}%)`:''}  </div>
+            <div style="font-size:14px;font-weight:800;color:#f85149;font-family:'JetBrains Mono',monospace">${fmt(sl)}</div>
+          </div>`:''}
+          ${rr!=null?`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:8px 10px">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Risk / Reward</div>
+            <div style="font-size:14px;font-weight:800;color:${rr>=2?'#3fb950':rr>=1.5?'#d29922':'#f85149'};font-family:'JetBrains Mono',monospace">1 : ${rr}</div>
+          </div>`:''}
+        </div>
+        ${tp1||tp2?`<div style="margin-top:8px;display:grid;grid-template-columns:${tp1&&tp2?'1fr 1fr':'1fr'};gap:6px">
+          ${tp1?`<div style="background:var(--bg3);border:1px solid #a78bfa40;border-radius:7px;padding:8px 10px">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">TP1 ${tp1Pct?`(+${tp1Pct}%)`:''}  </div>
+            <div style="font-size:14px;font-weight:800;color:#a78bfa;font-family:'JetBrains Mono',monospace">${fmt(tp1)}</div>
+          </div>`:''}
+          ${tp2?`<div style="background:var(--bg3);border:1px solid #f472b640;border-radius:7px;padding:8px 10px">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">TP2</div>
+            <div style="font-size:14px;font-weight:800;color:#f472b6;font-family:'JetBrains Mono',monospace">${fmt(tp2)}</div>
+          </div>`:''}
+        </div>`:''}
+        ${(ts.trade_notes||[]).length?`<div style="margin-top:8px;font-size:10px;color:var(--text2);line-height:1.6">${ts.trade_notes.map(n=>`· ${n}`).join('<br>')}</div>`:''}
+      </div>`;
+    })()}
+
     <div class="ana-box">
       <div class="ana-title">🧠 3 Swings Context</div>
       <div class="ana-text">${(d.timeframe_context?.advice)||''}<br><span style="color:var(--text2);font-size:10px">${(d.timeframe_context?.bias_reasons||[]).join(' · ')}</span></div>
@@ -553,8 +664,16 @@ async function loadCoin(i){
   loading.style.display='flex';
   document.getElementById('load-msg').textContent=`กำลังโหลด ${c.n}...`;
 
-  const candlesP=fetch(`${API}/candles/${c.s}?interval=${tf}&limit=300`).then(r=>r.json()).catch(()=>[]);
-  const anaP=fetch(`${API}/analysis/${c.s}?tf=${tf}`).then(r=>r.json()).catch(()=>null);
+  // ถ้า exchange !== BINANCE ให้ดึงผ่าน TradingView MCP endpoint
+  const isTVAsset = c.exchange && c.exchange !== 'BINANCE';
+  const rawSym = isTVAsset ? c.s.replace(/^[^:]+:/,'') : c.s;
+  const exchParam = c.exchange || 'BINANCE';
+  const candlesP = isTVAsset
+    ? Promise.resolve([])  // TV assets ไม่มี candle Binance
+    : fetch(`${API}/candles/${c.s}?interval=${tf}&limit=300`).then(r=>r.json()).catch(()=>[]);
+  const anaP = isTVAsset
+    ? fetch(`${API}/tv-analysis/${rawSym}?exchange=${exchParam}&tf=${tf}`).then(r=>r.json()).catch(()=>null)
+    : fetch(`${API}/analysis/${c.s}?tf=${tf}`).then(r=>r.json()).catch(()=>null);
 
   // Analysis ปรากฏทันที ไม่ต้องรอ chart
   anaP.then(a=>{if(a&&!a.error){tvData[c.s]=a;updateAnalysisPanel(c,a);updatePriceHeader(c,a);}});
@@ -568,12 +687,26 @@ async function loadCoin(i){
 // ─── SIDEBAR / SCANNER ───
 function buildSidebar(){
   const el=document.getElementById('sidebar-coins');
+  el.innerHTML='';
   COINS.forEach((c,i)=>{
     const d=document.createElement('div');
-    d.className='coin-item'+(i===0?' active':'');d.id='sc-'+i;
-    d.innerHTML=`<div class="coin-dot" style="background:${c.color}"></div><span style="font-size:12px;font-weight:700;flex:1">${c.n}</span><span style="font-size:10px;font-weight:600" id="sp-${i}">–</span>`;
-    d.onclick=()=>loadCoin(i);el.appendChild(d);
+    d.className='coin-item'+(i===idx?' active':'');d.id='sc-'+i;
+    d.innerHTML=`
+      <div class="coin-dot" style="background:${c.color}"></div>
+      <span style="font-size:12px;font-weight:700;flex:1;cursor:pointer" onclick="loadCoin(${i})">${c.n}</span>
+      <span style="font-size:10px;font-weight:600" id="sp-${i}">–</span>
+      ${c.custom?`<span onclick="delCoin('${c.s}')" style="font-size:10px;color:var(--text3);cursor:pointer;padding:0 2px;margin-left:2px" title="ลบ">✕</span>`:''}
+    `;
+    d.querySelector('span')?.addEventListener('click',()=>loadCoin(i));
+    el.appendChild(d);
   });
+}
+function delCoin(s){
+  const i=COINS.findIndex(c=>c.s===s);
+  if(i>-1){COINS.splice(i,1);removeSavedCoin(s);}
+  if(idx>=COINS.length)idx=COINS.length-1;
+  buildSidebar();
+  loadCoin(idx);
 }
 
 async function buildScanner(){
