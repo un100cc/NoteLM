@@ -588,6 +588,61 @@ function updateAnalysisPanel(c,d){
       ${d.support_resistance?.pivot?`<div class="lvl"><div class="lvl-l"><div class="lvl-bar" style="background:#d29922"></div>Pivot</div><div class="lvl-v" style="color:#d29922">${fmt(d.support_resistance.pivot)}</div></div>`:''}
     </div>
 
+    ${(()=>{
+      const ts=d.trade_setup||{};
+      const ep=ts.entry_points||{};
+      const tg=ts.targets||{};
+      const sl=ts.stop_loss;
+      const price=d.price_data?.current_price||d.price_data?.close||0;
+      if(!ep.pullback_entry&&!ep.breakout_entry) return '';
+      const entry=ep.pullback_entry||ep.breakout_entry;
+      const tp1=tg.target_1;
+      const tp2=tg.target_2;
+      const slPct=sl&&entry?Math.abs(((sl-entry)/entry)*100).toFixed(2):null;
+      const tp1Pct=tp1&&entry?Math.abs(((tp1-entry)/entry)*100).toFixed(2):null;
+      const rr=ts.risk_reward?.to_target_1?ts.risk_reward.to_target_1:null;
+      const qual=ts.trade_quality||d.trade_quality||'';
+      const qualColor=qual.includes('Strong')||qual.includes('Good')?'#3fb950':qual.includes('Weak')||qual.includes('Avoid')?'#f85149':'#d29922';
+      const setupBadges=(ts.setup_types||[]).map(s=>`<span style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:10px;color:var(--text2)">${s}</span>`).join('');
+      return `
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:11px;font-weight:800;color:var(--text1)">🎯 จุดเข้า / ออก / SL</span>
+          <span style="font-size:10px;font-weight:700;color:${qualColor}">${qual}</span>
+        </div>
+        ${setupBadges?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">${setupBadges}</div>`:''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          ${ep.pullback_entry?`<div style="background:var(--bg3);border:1px solid #3fb95040;border-radius:7px;padding:8px 10px">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Entry (Pullback)</div>
+            <div style="font-size:14px;font-weight:800;color:#3fb950;font-family:'JetBrains Mono',monospace">${fmt(ep.pullback_entry)}</div>
+          </div>`:''}
+          ${ep.breakout_entry?`<div style="background:var(--bg3);border:1px solid #58a6ff40;border-radius:7px;padding:8px 10px">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Entry (Breakout)</div>
+            <div style="font-size:14px;font-weight:800;color:var(--blue);font-family:'JetBrains Mono',monospace">${fmt(ep.breakout_entry)}</div>
+          </div>`:''}
+          ${sl!=null?`<div style="background:var(--bg3);border:1px solid #f8514940;border-radius:7px;padding:8px 10px">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Stop Loss ${slPct?`(-${slPct}%)`:''}  </div>
+            <div style="font-size:14px;font-weight:800;color:#f85149;font-family:'JetBrains Mono',monospace">${fmt(sl)}</div>
+          </div>`:''}
+          ${rr!=null?`<div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:8px 10px">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Risk / Reward</div>
+            <div style="font-size:14px;font-weight:800;color:${rr>=2?'#3fb950':rr>=1.5?'#d29922':'#f85149'};font-family:'JetBrains Mono',monospace">1 : ${rr}</div>
+          </div>`:''}
+        </div>
+        ${tp1||tp2?`<div style="margin-top:8px;display:grid;grid-template-columns:${tp1&&tp2?'1fr 1fr':'1fr'};gap:6px">
+          ${tp1?`<div style="background:var(--bg3);border:1px solid #a78bfa40;border-radius:7px;padding:8px 10px">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">TP1 ${tp1Pct?`(+${tp1Pct}%)`:''}  </div>
+            <div style="font-size:14px;font-weight:800;color:#a78bfa;font-family:'JetBrains Mono',monospace">${fmt(tp1)}</div>
+          </div>`:''}
+          ${tp2?`<div style="background:var(--bg3);border:1px solid #f472b640;border-radius:7px;padding:8px 10px">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">TP2</div>
+            <div style="font-size:14px;font-weight:800;color:#f472b6;font-family:'JetBrains Mono',monospace">${fmt(tp2)}</div>
+          </div>`:''}
+        </div>`:''}
+        ${(ts.trade_notes||[]).length?`<div style="margin-top:8px;font-size:10px;color:var(--text2);line-height:1.6">${ts.trade_notes.map(n=>`· ${n}`).join('<br>')}</div>`:''}
+      </div>`;
+    })()}
+
     <div class="ana-box">
       <div class="ana-title">🧠 3 Swings Context</div>
       <div class="ana-text">${(d.timeframe_context?.advice)||''}<br><span style="color:var(--text2);font-size:10px">${(d.timeframe_context?.bias_reasons||[]).join(' · ')}</span></div>
