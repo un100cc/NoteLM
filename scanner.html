@@ -125,7 +125,7 @@ function getSetup(ana) {
 
   // ✅ BUY — M3 confirmed + strong momentum (Best setup)
   // Bullish bias + RSI > 55 + MACD > 0 + BB Upper Half + +DI > -DI
-  if(bias==='Bullish' && rsi>55 && macdH>0 && bbPos.includes('Upper') && diSig.includes('+DI')) {
+  if(bias==='Bullish' && rsi>55 && macdH>0 && bbPos.includes('Upper') && diSig.includes('+DI > -DI')) {
     return {setup:'buy',label:'🟢 BUY Signal',color:'#3fb950',m1:'▼',m2:'✅',m3:'▲',m1c:'#f85149',m2c:'#3fb950',m3c:'#3fb950',
       ana:`✅ Bias Bullish · RSI ${rsi.toFixed(1)} > 55 · MACD Hist +${macdH.toFixed(4)} · BB Upper · +DI > -DI → ยืนยัน M3`};
   }
@@ -139,15 +139,15 @@ function getSetup(ana) {
     return {setup:'shock',label:'🔥 Shock Retest',color:'#f59e0b',m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#f59e0b',m3c:'#388bfd',
       ana:`MACD Hist +${macdH.toFixed(4)} · RSI ${rsi.toFixed(1)} Rising → M2 ใกล้จบ รอ Retest Fib Zone ⚡`};
   }
-  // 📊 M2 Pullback — Bearish bias แต่ MACD เริ่มพลิก
-  if(macdH>0 && rsi<55) {
-    return {setup:'m2',label:'📊 M2 Pullback',color:'#58a6ff',m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',
-      ana:`MACD พลิก Bullish · RSI ${rsi.toFixed(1)} · รอ Shock ผ่าน EMA30 ก่อน entry`};
-  }
-  // ⚠️ Strong Bear — RSI Falling + ADX แข็งแกร่ง + Bearish bias
+  // ⚠️ Strong Bear — RSI Falling + ADX แข็งแกร่ง + Bearish bias (ต้องเช็คก่อน M2)
   if(bias==='Bearish' && rsiDir==='Falling' && adx>40) {
     return {setup:'bear',label:'⚠️ Strong Bear',color:'#f85149',m1:'▼',m2:'▼',m3:'❓',m1c:'#f85149',m2c:'#f85149',m3c:'#484f58',
       ana:`Bias Bearish · ADX ${adx} Strong · RSI ${rsi.toFixed(1)} Falling · ยังไม่ใช่เวลาเข้า Long`};
+  }
+  // 📊 M2 Pullback — MACD เริ่มพลิก (fallback หลัง Bear)
+  if(macdH>0 && rsi<55) {
+    return {setup:'m2',label:'📊 M2 Pullback',color:'#58a6ff',m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',
+      ana:`MACD พลิก Bullish · RSI ${rsi.toFixed(1)} · รอ Shock ผ่าน EMA30 ก่อน entry`};
   }
   // Default: Sideways / Ranging
   return {setup:'m2',label:'📊 Sideways',color:'#8b949e',m1:'–',m2:'⏸',m3:'–',m1c:'#484f58',m2c:'#d29922',m3c:'#484f58',
