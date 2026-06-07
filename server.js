@@ -219,12 +219,14 @@ app.get('/api/analysis/:symbol', async (req, res) => {
     const bullish = emaSignals.filter(Boolean).length;
     const bias = bullish >= 2 ? 'Bullish' : bullish === 0 ? 'Bearish' : 'Neutral';
 
-    // Pivot
-    const recentHighs = candles.slice(-20).map(c => c.high);
-    const recentLows  = candles.slice(-20).map(c => c.low);
-    const pivotH = Math.max(...recentHighs);
-    const pivotL = Math.min(...recentLows);
+    // Pivot — ใช้ candle ล่าสุด 5 ตัวคำนวณ S/R ที่ใกล้ราคาจริง
+    const recent5 = candles.slice(-5);
+    const pivotH = Math.max(...recent5.map(c => c.high));
+    const pivotL = Math.min(...recent5.map(c => c.low));
     const pivot  = (pivotH + pivotL + last.close) / 3;
+    // R1/S1 ต้องอยู่คนละฝั่งของราคาปัจจุบัน
+    const r1 = Math.max(pivotH, last.close * 1.002);
+    const s1 = Math.min(pivotL, last.close * 0.998);
 
     const data = {
       symbol: `BINANCE:${symbol}`,
@@ -233,16 +235,22 @@ app.get('/api/analysis/:symbol', async (req, res) => {
       rsi: { value: rsiVal, signal: rsiVal < 30 ? 'Oversold' : rsiVal > 70 ? 'Overbought' : 'Neutral', direction: rsiVal > rsiPrev ? 'Rising' : rsiVal < rsiPrev ? 'Falling' : 'Flat', previous: rsiPrev },
       macd: { ...macd },
       ema: emas,
-      bollinger_bands: bb ? { upper: Math.round(bb.upper*10000)/10000, middle: Math.round(bb.middle*10000)/10000, lower: Math.round(bb.lower*10000)/10000, width: Math.round(bb.width*10000)/10000, position: last.close > bb.middle ? 'Upper Half' : 'Lower Half' } : {},
+      bollinger_bands: bb ? {
+        upper:  Math.round(Math.max(bb.upper, bb.lower)*10000)/10000,
+        middle: Math.round(bb.middle*10000)/10000,
+        lower:  Math.round(Math.min(bb.upper, bb.lower)*10000)/10000,
+        width:  Math.round(bb.width*10000)/10000,
+        position: last.close > bb.middle ? 'Upper Half' : 'Lower Half'
+      } : {},
       adx,
       support_resistance: {
-        pivot: Math.round(pivot*10000)/10000,
-        resistance_1: Math.round(pivotH*10000)/10000,
-        resistance_2: Math.round(pivotH*1.02*10000)/10000,
-        support_1: Math.round(pivotL*10000)/10000,
-        support_2: Math.round(pivotL*0.98*10000)/10000,
-        nearest_resistance: Math.round(pivotH*10000)/10000,
-        nearest_support: Math.round(pivotL*10000)/10000,
+        pivot:          Math.round(pivot*10000)/10000,
+        resistance_1:   Math.round(r1*10000)/10000,
+        resistance_2:   Math.round(r1*1.015*10000)/10000,
+        support_1:      Math.round(s1*10000)/10000,
+        support_2:      Math.round(s1*0.985*10000)/10000,
+        nearest_resistance: Math.round(r1*10000)/10000,
+        nearest_support:    Math.round(s1*10000)/10000,
       },
       stochastic: { k: Math.round(rsiVal), d: Math.round(rsiPrev || rsiVal) },
       market_structure: {
