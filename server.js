@@ -12,6 +12,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
+// ─── Clean URL routes (ไม่ต้องพิมพ์ .html) ───
+['/', '/dashboard'].forEach(r => app.get(r, (_, res) => res.sendFile(path.join(__dirname, 'index.html'))));
+['scanner', 'watchlist', 'strategy'].forEach(p =>
+  app.get(`/${p}`, (_, res) => res.sendFile(path.join(__dirname, `${p}.html`)))
+);
+
 // ─── In-memory cache ───
 const cache = new Map();
 const CACHE_TTL = { analysis: 60000, candles: 30000, prices: 10000, gainers: 120000 };
