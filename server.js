@@ -10,13 +10,14 @@ require('events').EventEmitter.defaultMaxListeners = 50;
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
 
-// ─── Clean URL routes (ไม่ต้องพิมพ์ .html) ───
+// ─── Clean URL routes — ต้องอยู่ก่อน static middleware ───
 ['/', '/dashboard'].forEach(r => app.get(r, (_, res) => res.sendFile(path.join(__dirname, 'index.html'))));
 ['scanner', 'watchlist', 'strategy'].forEach(p =>
   app.get(`/${p}`, (_, res) => res.sendFile(path.join(__dirname, `${p}.html`)))
 );
+
+app.use(express.static(__dirname));
 
 // ─── In-memory cache ───
 const cache = new Map();
