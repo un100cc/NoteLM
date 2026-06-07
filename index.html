@@ -208,63 +208,70 @@ function findSwings(candles){
 //   M3 Target = 100% of M1 from M2 low
 
 function detect3Swings(candles, highs, lows) {
-  const setups = [];
+  const bullSetups = [];
+  const bearSetups = [];
+  const lastClose  = candles[candles.length-1].close;
 
   // ── Bullish 3 Swings ──
-  // M1: swing_low(start) → swing_high(M1end)
-  // M2: pullback to 33-62% of M1
-  // M3: next push up, target = M1end + M1_length
   for(let i=0; i<lows.length-1; i++){
     const M1start = lows[i];
-    const M1end   = highs.find(h=>h.idx>M1start.idx);
-    if(!M1end) continue;
-    const M1len = M1end.value - M1start.value;
-    if(M1len/M1start.value < 0.03) continue; // M1 ต้องมีนัยสำคัญ >3%
 
-    // หา M2 low — pullback 33-62% ของ M1
-    const M2low = lows.find(l=>l.idx>M1end.idx && l.idx<M1end.idx+40);
+    // [FIX 1] หา swing high ที่สูงสุดใน 60 แท่งหลัง M1start (ไม่ใช่แค่แรกที่เจอ)
+    const hiCandidates = highs.filter(h=>h.idx>M1start.idx && h.idx<M1start.idx+60);
+    if(!hiCandidates.length) continue;
+    const M1end = hiCandidates.reduce((a,b)=>b.value>a.value?b:a);
+
+    const M1len = M1end.value - M1start.value;
+    if(M1len/M1start.value < 0.03) continue;
+    // M1 ต้องใช้เวลาอย่างน้อย 3 แท่ง (ไม่ใช่ spike สั้น)
+    if(M1end.idx - M1start.idx < 3) continue;
+
+    // [FIX 2] ขยาย M2 window เป็น 80 แท่ง
+    const M2low = lows.find(l=>l.idx>M1end.idx && l.idx<M1end.idx+80);
     if(!M2low) continue;
     const retrace = (M1end.value-M2low.value)/M1len;
-    if(retrace<0.28||retrace>0.75) continue;
+    // [FIX 3] Retrace ต้องอยู่ใน 33-65% ตรงตาม strategy
+    if(retrace<0.30||retrace>0.68) continue;
 
-    // คำนวณ Fib levels
     const fib333 = M1end.value - M1len*0.333;
     const fib500 = M1end.value - M1len*0.500;
     const fib618 = M1end.value - M1len*0.618;
-    const retestZoneHi = fib333;
-    const retestZoneLo = fib618;
 
-    // M3 Target = 100% of M1 from M2 low
+    // M3 Target = M2low + M1len (C wave = A wave)
     const M3target = M2low.value + M1len;
 
-    // Shock = ราคาหลัง M2 ที่ทะลุ M1end ขึ้นไป
     const shockCandle = candles.slice(M2low.idx).find(c=>c.close>M1end.value);
 
-    setups.push({
+    bullSetups.push({
       dir:'bull',
       M1start, M1end, M2low,
       fib333, fib500, fib618,
-      retestZoneHi, retestZoneLo,
-      M3target,
-      shockCandle,
-      M1len,
+      retestZoneHi: fib333, retestZoneLo: fib618,
+      M3target, shockCandle, M1len,
       color:'#f59e0b',
       retrace: Math.round(retrace*100),
+      score: M1len/M1start.value, // ใช้ rank setup ที่ significant ที่สุด
     });
   }
 
   // ── Bearish 3 Swings ──
   for(let i=0; i<highs.length-1; i++){
     const M1start = highs[i];
-    const M1end   = lows.find(l=>l.idx>M1start.idx);
-    if(!M1end) continue;
+
+    // [FIX 1] หา swing low ที่ต่ำสุดใน 60 แท่งหลัง M1start
+    const loCandidates = lows.filter(l=>l.idx>M1start.idx && l.idx<M1start.idx+60);
+    if(!loCandidates.length) continue;
+    const M1end = loCandidates.reduce((a,b)=>b.value<a.value?b:a);
+
     const M1len = M1start.value - M1end.value;
     if(M1len/M1start.value < 0.03) continue;
+    if(M1end.idx - M1start.idx < 3) continue;
 
-    const M2high = highs.find(h=>h.idx>M1end.idx && h.idx<M1end.idx+40);
+    // [FIX 2] ขยาย M2 window เป็น 80 แท่ง
+    const M2high = highs.find(h=>h.idx>M1end.idx && h.idx<M1end.idx+80);
     if(!M2high) continue;
     const retrace = (M2high.value-M1end.value)/M1len;
-    if(retrace<0.28||retrace>0.75) continue;
+    if(retrace<0.30||retrace>0.68) continue;
 
     const fib333 = M1end.value + M1len*0.333;
     const fib500 = M1end.value + M1len*0.500;
@@ -272,21 +279,33 @@ function detect3Swings(candles, highs, lows) {
     const M3target = M2high.value - M1len;
     const shockCandle = candles.slice(M2high.idx).find(c=>c.close<M1end.value);
 
-    setups.push({
+    bearSetups.push({
       dir:'bear',
       M1start, M1end, M2low:M2high,
       fib333, fib500, fib618,
       retestZoneHi: fib618, retestZoneLo: fib333,
-      M3target,
-      shockCandle,
-      M1len,
+      M3target, shockCandle, M1len,
       color:'#f87171',
       retrace: Math.round(retrace*100),
+      score: M1len/M1start.value,
     });
   }
 
-  // Return latest 2 setups
-  return setups.slice(-2);
+  // [FIX 3] แยก Bull/Bear — เลือก setup ที่ significant สุด (score สูงสุด)
+  // แสดงแค่ 1 Bull + 1 Bear ที่ชัดที่สุด ไม่ปนกัน
+  const bestBull = bullSetups.sort((a,b)=>b.score-a.score).slice(0,1);
+  const bestBear = bearSetups.sort((a,b)=>b.score-a.score).slice(0,1);
+
+  // เลือกตาม bias ราคาปัจจุบัน — ถ้าราคาเหนือ M1end ของ bear = bull bias
+  // Return ทั้งคู่ แต่ sort ให้ตรง bias ก่อน
+  const combined = [...bestBull, ...bestBear]
+    .sort((a,b)=> {
+      // setup ที่ M2low ใกล้ปัจจุบันมาที่สุดขึ้นก่อน (most recent)
+      const aRecent = Math.abs(candles.length - a.M2low.idx);
+      const bRecent = Math.abs(candles.length - b.M2low.idx);
+      return aRecent - bRecent;
+    });
+  return combined.slice(0,2);
 }
 
 // ─── DRAW 3 SWINGS — TradingView style ───
