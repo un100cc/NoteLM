@@ -324,52 +324,66 @@ function drawPatterns(candles, mainChart, cs){
     const lastTime = candles[candles.length-1].time;
     const fmtV = v => v>100 ? v.toFixed(2) : v.toFixed(5);
 
-    // ── M1 Line (สีเทา — โครงสร้าง) ──
-    const m1s = mainChart.addLineSeries({color:'#94a3b880',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    // ── สีประจำแต่ละ direction ──
+    const C = isUp ? {
+      m1   : '#60a5fa',   // ฟ้า  — M1 impulse
+      m2   : '#a78bfa',   // ม่วง — M2 pullback
+      shock: '#34d399',   // เขียว — Shock ref line
+      f333 : '#4ade80',   // เขียวสด — Fib 33.3%
+      f500 : '#facc15',   // เหลืองทอง — Fib 50% ★
+      f618 : '#fb923c',   // ส้ม — Fib 61.8%
+      m3   : '#38bdf8',   // ฟ้าอ่อน — M3 Target
+    } : {
+      m1   : '#f87171',   // แดง — M1 impulse
+      m2   : '#c084fc',   // ม่วง — M2 pullback
+      shock: '#f43f5e',   // แดงเข้ม — Shock ref line
+      f333 : '#fb7185',   // ชมพู — Fib 33.3%
+      f500 : '#facc15',   // เหลืองทอง — Fib 50% ★
+      f618 : '#fb923c',   // ส้ม — Fib 61.8%
+      m3   : '#94a3b8',   // เทา — M3 Target (bear)
+    };
+
+    // ── M1 Line — เส้น impulse หนา ──
+    const m1s = mainChart.addLineSeries({color:C.m1,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     m1s.setData([{time:p.M1start.time,value:p.M1start.value},{time:p.M1end.time,value:p.M1end.value}]);
     patSeries.push(m1s);
 
-    // ── M2 Line (สีเทา) ──
-    const m2s = mainChart.addLineSeries({color:'#94a3b880',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    // ── M2 Line — เส้น pullback หนา ──
+    const m2s = mainChart.addLineSeries({color:C.m2,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     m2s.setData([{time:p.M1end.time,value:p.M1end.value},{time:p.M2low.time,value:p.M2low.value}]);
     patSeries.push(m2s);
 
-    // ── Fib Retracement Lines (เส้น Retest Zone) ──
-    // 33.3% — สีเขียวอ่อน
-    const f33s = mainChart.addLineSeries({color:'#3fb95088',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    f33s.setData([{time:p.M2low.time,value:p.fib333},{time:lastTime,value:p.fib333}]);
-    patSeries.push(f33s);
-
-    // 50% — สีเหลือง (Golden Zone)
-    const f50s = mainChart.addLineSeries({color:'#f59e0b',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    f50s.setData([{time:p.M2low.time,value:p.fib500},{time:lastTime,value:p.fib500}]);
-    patSeries.push(f50s);
-
-    // 61.8% — สีส้ม
-    const f61s = mainChart.addLineSeries({color:'#fb923c88',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    f61s.setData([{time:p.M2low.time,value:p.fib618},{time:lastTime,value:p.fib618}]);
-    patSeries.push(f61s);
-
-    // ── M3 Target (100% of M1) — สีฟ้า ──
-    const m3s = mainChart.addLineSeries({color:'#58a6ff',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    m3s.setData([{time:p.M2low.time,value:p.M3target},{time:lastTime,value:p.M3target}]);
-    patSeries.push(m3s);
-
-    // ── M1 High / M2 Low price lines (จุด Shock reference) ──
-    const shockRef = mainChart.addLineSeries({color:isUp?'#3fb95066':'#f8514966',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    shockRef.setData([{time:p.M1end.time,value:p.M1end.value},{time:lastTime,value:p.M1end.value}]);
+    // ── Shock Reference Line — เส้นระดับ M1 end ──
+    const shockRef = mainChart.addLineSeries({color:C.shock,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    shockRef.setData([{time:p.M1start.time,value:p.M1end.value},{time:lastTime,value:p.M1end.value}]);
     patSeries.push(shockRef);
 
+    // ── Fib 33.3% — สีเขียว ──
+    const f33s = mainChart.addLineSeries({color:C.f333,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    f33s.setData([{time:p.M1start.time,value:p.fib333},{time:lastTime,value:p.fib333}]);
+    patSeries.push(f33s);
+
+    // ── Fib 50% — สีเหลือง หนาสุด (Golden Zone) ──
+    const f50s = mainChart.addLineSeries({color:C.f500,lineWidth:3,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    f50s.setData([{time:p.M1start.time,value:p.fib500},{time:lastTime,value:p.fib500}]);
+    patSeries.push(f50s);
+
+    // ── Fib 61.8% — สีส้ม ──
+    const f61s = mainChart.addLineSeries({color:C.f618,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    f61s.setData([{time:p.M1start.time,value:p.fib618},{time:lastTime,value:p.fib618}]);
+    patSeries.push(f61s);
+
+    // ── M3 Target — เส้นฟ้า/เทา หนา dotted ──
+    const m3s = mainChart.addLineSeries({color:C.m3,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    m3s.setData([{time:p.M1start.time,value:p.M3target},{time:lastTime,value:p.M3target}]);
+    patSeries.push(m3s);
+
     // ── Markers บน candlestick ──
-    // M1 Start
-    allMarkers.push({time:p.M1start.time, position:isUp?'belowBar':'aboveBar', color:'#94a3b8', shape:'circle', size:1, text:'M1'});
-    // M1 End (Swing high/low ของ M1)
-    allMarkers.push({time:p.M1end.time, position:isUp?'aboveBar':'belowBar', color:'#94a3b8', shape:'circle', size:1, text:''});
-    // M2 (Retracement end)
-    allMarkers.push({time:p.M2low.time, position:isUp?'belowBar':'aboveBar', color:p.color, shape:'circle', size:2, text:'M2'});
-    // Shock candle
+    allMarkers.push({time:p.M1start.time, position:isUp?'belowBar':'aboveBar', color:C.m1, shape:'circle', size:2, text:'M1'});
+    allMarkers.push({time:p.M1end.time,   position:isUp?'aboveBar':'belowBar', color:C.m1, shape:'circle', size:2, text:''});
+    allMarkers.push({time:p.M2low.time,   position:isUp?'belowBar':'aboveBar', color:C.m2, shape:'circle', size:3, text:'M2'});
     if(p.shockCandle){
-      allMarkers.push({time:p.shockCandle.time, position:isUp?'aboveBar':'belowBar', color:'#ffffff', shape:isUp?'arrowUp':'arrowDown', size:1, text:'⚡'});
+      allMarkers.push({time:p.shockCandle.time, position:isUp?'aboveBar':'belowBar', color:'#facc15', shape:isUp?'arrowUp':'arrowDown', size:2, text:'⚡'});
     }
 
     // ── Pattern Panel info ──
