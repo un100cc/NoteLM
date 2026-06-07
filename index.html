@@ -101,11 +101,19 @@
         <button onclick="addCoin()" style="background:var(--blue-dim);border:1px solid var(--blue);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--blue);cursor:pointer;font-weight:700">+</button>
       </div>
       <select id="exchange-select" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:10px;color:var(--text2);outline:none">
-        <option value="BINANCE">🟡 BINANCE (Crypto)</option>
-        <option value="NASDAQ">🔵 NASDAQ (US Tech)</option>
-        <option value="NYSE">🔵 NYSE (US Stocks)</option>
-        <option value="FOREXCOM">🟢 FOREX (FX / Gold)</option>
-        <option value="BITKUB">🇹🇭 BITKUB (Thai Crypto)</option>
+        <optgroup label="── Crypto ──">
+          <option value="BINANCE">🟡 BINANCE</option>
+          <option value="KUCOIN">🟢 KUCOIN</option>
+          <option value="MEXC">🔴 MEXC</option>
+        </optgroup>
+        <optgroup label="── Stocks ──">
+          <option value="NASDAQ">🔵 NASDAQ (US Tech)</option>
+          <option value="NYSE">🔵 NYSE (US Stocks)</option>
+          <option value="BIST">🇹🇷 BIST (Turkey)</option>
+          <option value="HKEX">🇭🇰 HKEX (HongKong)</option>
+          <option value="SSE">🇨🇳 SSE (Shanghai)</option>
+          <option value="TWSE">🇹🇼 TWSE (Taiwan)</option>
+        </optgroup>
       </select>
       <div id="add-msg" style="font-size:10px;color:var(--text3);margin-top:3px;height:14px"></div>
     </div>
