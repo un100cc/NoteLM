@@ -115,9 +115,9 @@
           </div>
           <div class="tf-row">
             <button class="tf-btn" onclick="changeTF('15m',this)">15m</button>
-            <button class="tf-btn active" onclick="changeTF('1h',this)">1H</button>
+            <button class="tf-btn" onclick="changeTF('1h',this)">1H</button>
             <button class="tf-btn" onclick="changeTF('4h',this)">4H</button>
-            <button class="tf-btn" onclick="changeTF('1d',this)">1D</button>
+            <button class="tf-btn active" onclick="changeTF('1d',this)">1D</button>
             <div class="ptogs">
               <button class="ptog p123 on" id="tog123" onclick="toggleP('123')">3 Swings</button>
             </div>
@@ -177,7 +177,7 @@ const COINS=[
   {s:'AVAXUSDT',n:'AVAX',full:'Avalanche',   color:'#e84142'},
   {s:'DOTUSDT', n:'DOT', full:'Polkadot',    color:'#e6007a'},
 ];
-let idx=0,tf='1h',chartMain=null,chartRSI=null,tvData={};
+let idx=0,tf='1d',chartMain=null,chartRSI=null,tvData={};
 let show123=true,showABC=true;
 let patSeries=[];
 
@@ -343,40 +343,15 @@ function drawPatterns(candles, mainChart, cs){
       m3   : '#94a3b8',   // เทา — M3 Target (bear)
     };
 
-    // ── M1 Line — เส้น impulse หนา ──
-    const m1s = mainChart.addLineSeries({color:C.m1,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    // ── M1 Line — impulse move ──
+    const m1s = mainChart.addLineSeries({color:C.m1,lineWidth:3,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     m1s.setData([{time:p.M1start.time,value:p.M1start.value},{time:p.M1end.time,value:p.M1end.value}]);
     patSeries.push(m1s);
 
-    // ── M2 Line — เส้น pullback หนา ──
-    const m2s = mainChart.addLineSeries({color:C.m2,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    // ── M2 Line — pullback ──
+    const m2s = mainChart.addLineSeries({color:C.m2,lineWidth:3,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     m2s.setData([{time:p.M1end.time,value:p.M1end.value},{time:p.M2low.time,value:p.M2low.value}]);
     patSeries.push(m2s);
-
-    // ── Shock Reference Line — เส้นระดับ M1 end ──
-    const shockRef = mainChart.addLineSeries({color:C.shock,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    shockRef.setData([{time:p.M1start.time,value:p.M1end.value},{time:lastTime,value:p.M1end.value}]);
-    patSeries.push(shockRef);
-
-    // ── Fib 33.3% — สีเขียว ──
-    const f33s = mainChart.addLineSeries({color:C.f333,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    f33s.setData([{time:p.M1start.time,value:p.fib333},{time:lastTime,value:p.fib333}]);
-    patSeries.push(f33s);
-
-    // ── Fib 50% — สีเหลือง หนาสุด (Golden Zone) ──
-    const f50s = mainChart.addLineSeries({color:C.f500,lineWidth:3,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    f50s.setData([{time:p.M1start.time,value:p.fib500},{time:lastTime,value:p.fib500}]);
-    patSeries.push(f50s);
-
-    // ── Fib 61.8% — สีส้ม ──
-    const f61s = mainChart.addLineSeries({color:C.f618,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    f61s.setData([{time:p.M1start.time,value:p.fib618},{time:lastTime,value:p.fib618}]);
-    patSeries.push(f61s);
-
-    // ── M3 Target — เส้นฟ้า/เทา หนา dotted ──
-    const m3s = mainChart.addLineSeries({color:C.m3,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
-    m3s.setData([{time:p.M1start.time,value:p.M3target},{time:lastTime,value:p.M3target}]);
-    patSeries.push(m3s);
 
     // ── Markers บน candlestick ──
     allMarkers.push({time:p.M1start.time, position:isUp?'belowBar':'aboveBar', color:C.m1, shape:'circle', size:2, text:'M1'});
