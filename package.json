@@ -1,0 +1,25 @@
+{
+  "name": "claude",
+  "version": "1.0.0",
+  "description": "",
+  "main": "_nav.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/un100cc/PosTee.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/un100cc/PosTee/issues"
+  },
+  "homepage": "https://github.com/un100cc/PosTee#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  }
+}

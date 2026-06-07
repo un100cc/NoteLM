@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>KLAUD — Strategy</title><link rel="stylesheet" href="_shared.css">
+<style>
+.strat-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.strat-card{background:var(--bg1);border:1px solid var(--border);border-radius:10px;padding:20px;}
+.strat-title{font-size:15px;font-weight:700;margin-bottom:6px;}
+.strat-sub{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:14px;}
+.step-list{display:flex;flex-direction:column;gap:10px;}
+.step{display:flex;gap:12px;align-items:flex-start;}
+.step-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-top:1px;}
+.step-text{font-size:12px;color:var(--text1);line-height:1.6;}
+.step-label{font-size:10px;font-weight:700;color:var(--text2);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px;}
+.fib-table{width:100%;border-collapse:collapse;margin-top:10px;}
+.fib-table th{font-size:10px;font-weight:700;color:var(--text2);padding:6px 10px;border-bottom:1px solid var(--border);text-align:left;text-transform:uppercase;letter-spacing:.5px;}
+.fib-table td{padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px;}
+.fib-table tr:last-child td{border-bottom:none;}
+.highlight-row td{background:var(--blue-dim);}
+.rule-box{background:var(--bg);border-left:3px solid var(--blue);border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:10px;font-size:12px;line-height:1.7;color:var(--text1);}
+.rule-box.green{border-color:var(--green);}
+.rule-box.red{border-color:var(--red);}
+.rule-box.yellow{border-color:var(--yellow);}
+.visual-swing{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:0;align-items:center;margin:16px 0;}
+.vs-block{border-radius:8px;padding:14px 10px;text-align:center;}
+.vs-arrow{font-size:24px;color:var(--text3);text-align:center;}
+.vs-title{font-size:12px;font-weight:800;margin-bottom:4px;}
+.vs-desc{font-size:10px;line-height:1.5;}
+.win-stat{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px;}
+.ws{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;}
+.ws-val{font-size:26px;font-weight:800;margin-bottom:4px;}
+.ws-lbl{font-size:10px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a href="index.html" class="topbar-logo"><div class="logo-icon">K</div><div class="logo-text">KL<span>AUD</span></div></a>
+  <nav class="topbar-nav" id="topbar-nav"></nav>
+  <div class="topbar-right">
+    <div class="badge-live"><div class="dot"></div>Live</div>
+  </div>
+</header>
+<div class="market-bar" id="market-bar" style="position:fixed;top:52px;left:0;right:0;z-index:99;"></div>
+
+<div class="page-layout" style="margin-top:104px;height:calc(100vh - 104px);">
+  <aside class="sidebar">
+    <div class="sidebar-section">Menu</div>
+    <a href="index.html"     class="sidebar-item"><span class="si-icon">📊</span> Dashboard</a>
+    <a href="scanner.html"   class="sidebar-item"><span class="si-icon">🔍</span> Scanner</a>
+    <a href="watchlist.html" class="sidebar-item"><span class="si-icon">⭐</span> Watchlist</a>
+    <a href="strategy.html"  class="sidebar-item active"><span class="si-icon">📈</span> Strategy</a>
+    <div class="sidebar-section" style="margin-top:8px">Sections</div>
+    <a href="#overview" class="sidebar-item" style="font-size:12px">3 Swings Overview</a>
+    <a href="#shock"    class="sidebar-item" style="font-size:12px">Shock Retest</a>
+    <a href="#fib"      class="sidebar-item" style="font-size:12px">Fibonacci Zones</a>
+    <a href="#mm"       class="sidebar-item" style="font-size:12px">Money Management</a>
+  </aside>
+  <div class="main-content">
+    <div class="content-body">
+      <div class="page-title">📈 กลยุทธ์ 3 Swings & Shock Retest</div>
+      <div class="page-sub">คู่มือการเทรดตามโครงสร้างราคา · หัวใจของ KLAUD Scanner</div>
+
+      <!-- WIN STATS -->
+      <div class="win-stat" style="margin-bottom:24px">
+        <div class="ws"><div class="ws-val" style="color:var(--green)">80%</div><div class="ws-lbl">Win Rate (ท่ามาตรฐาน)</div></div>
+        <div class="ws"><div class="ws-val" style="color:var(--blue)">50-60%</div><div class="ws-lbl">Win Rate เฉลี่ย</div></div>
+        <div class="ws"><div class="ws-val" style="color:var(--yellow)">1:2+</div><div class="ws-lbl">Risk:Reward ขั้นต่ำ</div></div>
+        <div class="ws"><div class="ws-val" style="color:var(--red)">3-5%</div><div class="ws-lbl">Risk ต่อไม้</div></div>
+      </div>
+
+      <!-- 3 SWINGS -->
+      <div id="overview" class="strat-card" style="margin-bottom:16px">
+        <div class="strat-title">📐 โครงสร้าง 3 Swings</div>
+        <div class="strat-sub">มองราคาเป็น 3 ช่วงหลัก — ทุก Trend ประกอบด้วย 3 Swing เสมอ</div>
+        <div class="visual-swing">
+          <div class="vs-block" style="background:#f8514918;border:1px solid #f8514940">
+            <div class="vs-title" style="color:var(--red)">M1 — Direction</div>
+            <div class="vs-desc" style="color:var(--text2)">แรงหลัก<br>ขึ้นหรือลงชัดเจน<br>ADX > 25</div>
+          </div>
+          <div class="vs-arrow">→</div>
+          <div class="vs-block" style="background:#d2992218;border:1px solid #d2992240">
+            <div class="vs-title" style="color:var(--yellow)">M2 — Non-Direction</div>
+            <div class="vs-desc" style="color:var(--text2)">พักตัว / Retracement<br>Fib 33-61.8%<br>RSI กลับ 40-55</div>
+          </div>
+          <div class="vs-arrow">→</div>
+          <div class="vs-block" style="background:#3fb95018;border:1px solid #3fb95040">
+            <div class="vs-title" style="color:var(--green)">M3 — Direction</div>
+            <div class="vs-desc" style="color:var(--text2)">ชุดส่ง / ตาม M1<br>เป้า 100% of M1<br>หรือ 138.2-161.8%</div>
+          </div>
+        </div>
+        <div class="rule-box green">✅ <strong>จังหวะที่ดีที่สุด:</strong> รอให้ M1 จบ → M2 Pullback มาที่ Fib Zone → เกิด Shock → รอ Retest → เข้า M3</div>
+        <div class="rule-box red">❌ <strong>หลีกเลี่ยง:</strong> ไล่ราคาตอน Shock แรก ไม่รอ Retest เพราะ SL จะกว้างมากและ R:R ไม่คุ้ม</div>
+      </div>
+
+      <div class="strat-grid">
+        <!-- SHOCK RETEST -->
+        <div id="shock" class="strat-card">
+          <div class="strat-title">⚡ Shock Retest — จังหวะ 2</div>
+          <div class="strat-sub">หัวใจสำคัญของกลยุทธ์ — เข้าเฉพาะ "จังหวะ 2" ไม่ไล่ราคา</div>
+          <div class="step-list">
+            <div class="step">
+              <div class="step-num" style="background:#f8514920;color:var(--red)">1</div>
+              <div><div class="step-label">ระบุ M2 Zone</div><div class="step-text">รอให้ M1 ชัดเจน แล้วหา Fib Retracement 33.3% / 50% / 61.8% ของ M1 เป็น M2 Target Zone</div></div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="background:#d2992220;color:var(--yellow)">2</div>
+              <div><div class="step-label">รอ Shock</div><div class="step-text">ราคาเสียโครงสร้าง (Break Level) แรงๆ = Shock เกิดขึ้น ห้ามเข้าตอนนี้</div></div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="background:#3fb95020;color:var(--green)">3</div>
+              <div><div class="step-label">รอ Retest (จังหวะ 2) ✅</div><div class="step-text">ราคาย้อนกลับมา Test แนวที่ Shock ผ่านไป → นี่คือจุดเข้าที่ดีที่สุด SL แคบ R:R สูง</div></div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="background:#58a6ff20;color:var(--blue)">4</div>
+              <div><div class="step-label">Confirm แล้วเข้า</div><div class="step-text">รอ Bullish Candle Close ที่ Retest Zone + Volume ลด = เข้า Long SL ใต้ Low ของ Retest</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FIB ZONES -->
+        <div id="fib" class="strat-card">
+          <div class="strat-title">📏 Fibonacci Zones</div>
+          <div class="strat-sub">ระดับ Fib สำคัญสำหรับ M2 Entry และ M3 Target</div>
+          <table class="fib-table">
+            <thead><tr><th>Level</th><th>ใช้ทำอะไร</th><th>ความสำคัญ</th></tr></thead>
+            <tbody>
+              <tr><td style="font-weight:700;color:var(--green)">23.6%</td><td>M2 Shallow</td><td style="color:var(--text2)">เทรนด์แรงมาก</td></tr>
+              <tr class="highlight-row"><td style="font-weight:700;color:var(--yellow)">33.3%</td><td>M2 Entry Zone 🔥</td><td style="color:var(--yellow)">★★★★</td></tr>
+              <tr class="highlight-row"><td style="font-weight:700;color:var(--yellow)">50.0%</td><td>M2 Golden Zone 🔥</td><td style="color:var(--yellow)">★★★★★</td></tr>
+              <tr class="highlight-row"><td style="font-weight:700;color:var(--yellow)">61.8%</td><td>M2 Deep Zone 🔥</td><td style="color:var(--yellow)">★★★★</td></tr>
+              <tr><td style="font-weight:700;color:var(--text2)">78.6%</td><td>M2 Very Deep</td><td style="color:var(--text2)">เทรนด์อ่อน</td></tr>
+              <tr><td style="font-weight:700;color:var(--blue)">100%</td><td>M3 Target 1</td><td style="color:var(--blue)">TP แรก</td></tr>
+              <tr><td style="font-weight:700;color:var(--blue)">138.2%</td><td>M3 Extension</td><td style="color:var(--blue)">TP สอง</td></tr>
+              <tr><td style="font-weight:700;color:var(--purple)">161.8%</td><td>M3 Full Extension</td><td style="color:var(--purple)">TP สาม</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- EMA & DIVERGENCE -->
+        <div class="strat-card">
+          <div class="strat-title">📊 EMA 30 & Divergence</div>
+          <div class="strat-sub">เครื่องมือยืนยัน Setup ก่อนเข้าเทรด</div>
+          <div class="rule-box">
+            <strong style="color:#ff9800">EMA 30:</strong> ใช้เป็น Dynamic Support/Resistance หลัก<br>
+            ราคาอยู่เหนือ EMA30 = Bullish Bias<br>
+            ราคาอยู่ใต้ EMA30 = Bearish Bias<br>
+            Retest EMA30 ใน M2 = จังหวะเข้าที่ดีมาก
+          </div>
+          <div class="rule-box yellow">
+            <strong style="color:var(--yellow)">Divergence ใน Swing 3:</strong><br>
+            ราคาทำ Higher High แต่ RSI ทำ Lower High = Bearish Div<br>
+            ราคาทำ Lower Low แต่ RSI ทำ Higher Low = Bullish Div<br>
+            ✅ พบบ่อยใน TF 1H และ 15M ตอนปลาย M2
+          </div>
+          <div class="rule-box green">
+            <strong style="color:var(--green)">Confirmation Checklist:</strong><br>
+            □ MACD Histogram พลิก Bullish<br>
+            □ RSI กลับจาก Oversold Zone<br>
+            □ Stochastic Cross<br>
+            □ EMA20 cross EMA30 (ถ้ามี)
+          </div>
+        </div>
+
+        <!-- MONEY MANAGEMENT -->
+        <div id="mm" class="strat-card">
+          <div class="strat-title">💰 Money Management</div>
+          <div class="strat-sub">กฎการบริหารเงิน — สำคัญกว่ากลยุทธ์</div>
+          <div class="step-list">
+            <div class="step">
+              <div class="step-num" style="background:#3fb95020;color:var(--green)">✓</div>
+              <div><div class="step-label">Risk ต่อไม้</div><div class="step-text"><strong>3-5%</strong> ของพอร์ต สูงสุด <strong>7%</strong> สำหรับ Setup ที่มั่นใจสูง (มี Divergence + Shock Retest)</div></div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="background:#58a6ff20;color:var(--blue)">✓</div>
+              <div><div class="step-label">R:R Minimum</div><div class="step-text">ไม่เข้าเทรดถ้า Risk:Reward ต่ำกว่า <strong>1:1.5</strong> ควรได้ <strong>1:2 ขึ้นไป</strong></div></div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="background:#d2992220;color:var(--yellow)">✓</div>
+              <div><div class="step-label">Stop Loss</div><div class="step-text">วาง SL ใต้/เหนือ Low/High ของ Retest Candle เสมอ ไม่ย้าย SL ไปไกลขึ้น</div></div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="background:#f8514920;color:var(--red)">✓</div>
+              <div><div class="step-label">Take Profit</div><div class="step-text">TP1: Fib 100% (เก็บ 50%) → TP2: Fib 138.2% (เก็บ 30%) → TP3: 161.8% (เก็บ 20%)</div></div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="background:#bc8cff20;color:var(--purple)">✓</div>
+              <div><div class="step-label">Max Open Positions</div><div class="step-text">ไม่เกิน <strong>3-5 ไม้</strong> พร้อมกัน และไม่ให้ Total Risk เกิน <strong>15%</strong> ของพอร์ต</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUMMARY -->
+      <div class="strat-card">
+        <div class="strat-title">🎯 สรุป — จำ 4 คำนี้ให้ขึ้นใจ</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px">
+          <div style="text-align:center;padding:20px;background:var(--bg);border:1px solid var(--border);border-radius:8px">
+            <div style="font-size:28px;margin-bottom:8px">👀</div>
+            <div style="font-weight:700;color:var(--blue);margin-bottom:4px">WAIT</div>
+            <div style="font-size:11px;color:var(--text2)">รอ M1 ชัดเจน ไม่คาดเดา</div>
+          </div>
+          <div style="text-align:center;padding:20px;background:var(--bg);border:1px solid var(--border);border-radius:8px">
+            <div style="font-size:28px;margin-bottom:8px">⚡</div>
+            <div style="font-weight:700;color:var(--yellow);margin-bottom:4px">SHOCK</div>
+            <div style="font-size:11px;color:var(--text2)">ดู Shock แต่ยังไม่เข้า</div>
+          </div>
+          <div style="text-align:center;padding:20px;background:var(--bg);border:1px solid var(--border);border-radius:8px">
+            <div style="font-size:28px;margin-bottom:8px">🎯</div>
+            <div style="font-weight:700;color:var(--green);margin-bottom:4px">RETEST</div>
+            <div style="font-size:11px;color:var(--text2)">เข้าเฉพาะจังหวะ 2 เท่านั้น</div>
+          </div>
+          <div style="text-align:center;padding:20px;background:var(--bg);border:1px solid var(--border);border-radius:8px">
+            <div style="font-size:28px;margin-bottom:8px">📐</div>
+            <div style="font-weight:700;color:var(--purple);margin-bottom:4px">MANAGE</div>
+            <div style="font-size:11px;color:var(--text2)">Risk 3-5% SL ชัดเจน</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="_nav.js"></script>
+<script>buildNav('Strategy');fetchMarketBar();setInterval(fetchMarketBar,30000);</script>
+</body></html>

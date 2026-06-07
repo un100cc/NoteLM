@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KLAUD — Scanner</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+.filter-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.filter-btn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text2);transition:all .2s;}
+.filter-btn:hover{color:var(--text1);}
+.filter-btn.active{border-color:var(--blue);background:var(--blue-dim);color:var(--blue);}
+.filter-btn.f-buy.active{border-color:var(--green);background:#3fb95015;color:var(--green);}
+.filter-btn.f-shock.active{border-color:var(--yellow);background:#d2992215;color:var(--yellow);}
+.filter-btn.f-bear.active{border-color:var(--red);background:#f8514915;color:var(--red);}
+.coin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;}
+.coin-card{background:var(--bg1);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:all .2s;text-decoration:none;display:block;color:inherit;}
+.coin-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3);}
+.cc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.cc-left{display:flex;align-items:center;gap:10px;}
+.cc-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
+.cc-sym{font-size:16px;font-weight:700;}
+.cc-full{font-size:11px;color:var(--text2);margin-top:1px;}
+.cc-price{text-align:right;}
+.cc-p{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.cc-c{font-size:12px;font-weight:700;margin-top:2px;}
+.cc-swing{display:flex;align-items:center;gap:4px;margin-bottom:10px;}
+.cc-sw{flex:1;text-align:center;padding:5px 3px;border-radius:5px;font-size:9px;font-weight:700;line-height:1.4;}
+.cc-sa{color:var(--text3);font-size:12px;}
+.cc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;}
+.cc-stat{text-align:center;}
+.cc-stat-l{font-size:9px;color:var(--text2);font-weight:700;}
+.cc-stat-v{font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:2px;}
+.cc-levels{display:flex;gap:8px;}
+.cc-lv{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;text-align:center;}
+.cc-lv-l{font-size:9px;color:var(--text2);font-weight:700;}
+.cc-lv-v{font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:1px;}
+.rsi-mini{margin:8px 0;}
+.rsi-mini-track{background:var(--bg3);border-radius:3px;height:4px;}
+.rsi-mini-fill{height:100%;border-radius:3px;}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a href="index.html" class="topbar-logo"><div class="logo-icon">K</div><div class="logo-text">KL<span>AUD</span></div></a>
+  <nav class="topbar-nav" id="topbar-nav"></nav>
+  <div class="topbar-right">
+    <div class="badge-live"><div class="dot"></div>Live · Binance</div>
+    <button class="btn btn-ghost" onclick="fetchPrices()">⟳ Refresh</button>
+  </div>
+</header>
+<div class="market-bar" id="market-bar" style="position:fixed;top:52px;left:0;right:0;z-index:99;"></div>
+
+<div class="page-layout" style="margin-top:104px;height:calc(100vh - 104px);">
+  <aside class="sidebar">
+    <div class="sidebar-section">Menu</div>
+    <a href="index.html"     class="sidebar-item"><span class="si-icon">📊</span> Dashboard</a>
+    <a href="scanner.html"   class="sidebar-item active"><span class="si-icon">🔍</span> Scanner <span class="si-badge" style="color:var(--green)">20</span></a>
+    <a href="watchlist.html" class="sidebar-item"><span class="si-icon">⭐</span> Watchlist</a>
+    <a href="strategy.html"  class="sidebar-item"><span class="si-icon">📈</span> Strategy</a>
+    <div class="sidebar-section" style="margin-top:8px">Setup Count</div>
+    <div style="padding:8px 12px;font-size:12px;display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--green)">🟢 BUY</span><span style="font-weight:700" id="cnt-buy">–</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--green)">📈 M3</span><span style="font-weight:700" id="cnt-m3">–</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--yellow)">🔥 Shock</span><span style="font-weight:700" id="cnt-shock">–</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--blue)">📊 M2</span><span style="font-weight:700" id="cnt-m2">–</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--red)">⚠️ Bear</span><span style="font-weight:700" id="cnt-bear">–</span></div>
+    </div>
+  </aside>
+  <div class="main-content">
+    <div class="content-body">
+      <div class="page-title">🔍 Scanner — 3 Swings & Shock Retest</div>
+      <div class="page-sub">สแกน 20 เหรียญตามกลยุทธ์ · กดที่ card เพื่อดูกราฟและ analysis เต็ม</div>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filter('all',this)">ทั้งหมด</button>
+        <button class="filter-btn f-buy" onclick="filter('buy',this)">🟢 BUY Signal</button>
+        <button class="filter-btn" onclick="filter('m3',this)">📈 M3 Setup</button>
+        <button class="filter-btn f-shock" onclick="filter('shock',this)">🔥 Shock Retest</button>
+        <button class="filter-btn" onclick="filter('m2',this)">📊 M2 Pullback</button>
+        <button class="filter-btn f-bear" onclick="filter('bear',this)">⚠️ Strong Bear</button>
+      </div>
+      <div class="coin-grid" id="coin-grid"></div>
+    </div>
+  </div>
+</div>
+
+<script src="_nav.js"></script>
+<script>
+const COINS=[
+  {s:'STXUSDT',n:'STX',full:'Stacks',color:'#9d8fff',setup:'buy',label:'🟢 BUY',rsi:52.8,ema20:0.1778,bbU:0.1826,bbL:0.1712,sup:0.1712,tp:0.1826,sl:0.169,adx:32.8,chg:1.46,m1:'▼',m2:'✅',m3:'▲',m1c:'#f85149',m2c:'#3fb950',m3c:'#3fb950',ana:'Candle 90% RSI>50 EMA20 Support'},
+  {s:'XLMUSDT',n:'XLM',full:'Stellar',color:'#14b6e7',setup:'m3',label:'📈 M3',rsi:53.6,ema20:0.1978,bbU:0.2078,bbL:0.1889,sup:0.1978,tp:0.2078,sl:0.194,adx:16.2,chg:1.62,m1:'▼',m2:'✅',m3:'▲',m1c:'#f85149',m2c:'#3fb950',m3c:'#3fb950',ana:'ผ่าน EMA20+50 Candle 89% Volume 9.3M'},
+  {s:'SUIUSDT',n:'SUI',full:'Sui Network',color:'#4da2ff',setup:'m3',label:'📈 M3',rsi:50.0,ema20:0.7048,bbU:0.7256,bbL:0.6779,sup:0.6779,tp:0.7256,sl:0.67,adx:30.4,chg:1.00,m1:'▼',m2:'✅',m3:'▲',m1c:'#f85149',m2c:'#3fb950',m3c:'#3fb950',ana:'EMA20 Support OBV Accumulation RSI>50'},
+  {s:'ICPUSDT',n:'ICP',full:'Internet Computer',color:'#f15a24',setup:'m3',label:'📈 M3',rsi:47.1,ema20:2.315,bbU:2.381,bbL:2.187,sup:2.187,tp:2.381,sl:2.15,adx:43.4,chg:0.52,m1:'▼',m2:'✅',m3:'▲',m1c:'#f85149',m2c:'#3fb950',m3c:'#3fb950',ana:'MACD Hist สูงสุด Stoch 72.6 BB Upper Half'},
+  {s:'AVAXUSDT',n:'AVAX',full:'Avalanche',color:'#e84142',setup:'m3',label:'📈 M3',rsi:45.2,ema20:6.76,bbU:7.037,bbL:6.399,sup:6.399,tp:7.037,sl:6.3,adx:48.5,chg:0.40,m1:'▼',m2:'✅',m3:'▲',m1c:'#f85149',m2c:'#3fb950',m3c:'#3fb950',ana:'OBV Accumulation MACD +0.037 Stoch Rising'},
+  {s:'DOGEUSDT',n:'DOGE',full:'Dogecoin',color:'#c2a633',setup:'shock',label:'🔥 Shock',rsi:47.7,ema20:0.0818,bbU:0.0836,bbL:0.0793,sup:0.0793,tp:0.0836,sl:0.078,adx:57.1,chg:0.62,m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',ana:'EMA20=ราคาปัจจุบัน Volume 39M สูง'},
+  {s:'DOTUSDT',n:'DOT',full:'Polkadot',color:'#e6007a',setup:'shock',label:'🔥 Shock',rsi:47.1,ema20:0.9488,bbU:0.9721,bbL:0.9122,sup:0.9122,tp:0.9721,sl:0.905,adx:52.8,chg:0.21,m1:'▼',m2:'✅',m3:'▲',m1c:'#f85149',m2c:'#3fb950',m3c:'#3fb950',ana:'BB Upper Half Stoch 73.2 Sentiment Bullish'},
+  {s:'APTUSDT',n:'APT',full:'Aptos',color:'#00b4d8',setup:'shock',label:'🔥 Shock',rsi:45.1,ema20:0.6632,bbU:0.6856,bbL:0.6322,sup:0.6322,tp:0.6856,sl:0.62,adx:55.5,chg:0.77,m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',ana:'Candle 71% OBV Accumulation รอผ่าน EMA20'},
+  {s:'LINKUSDT',n:'LINK',full:'Chainlink',color:'#5b8def',setup:'shock',label:'🔥 Shock',rsi:45.3,ema20:7.374,bbU:7.542,bbL:7.145,sup:7.145,tp:7.542,sl:7.08,adx:48.5,chg:0.04,m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',ana:'Lower Wick 57% OBV Accumulation RSI Rising'},
+  {s:'FETUSDT',n:'FET',full:'Fetch.AI',color:'#1eb4d4',setup:'shock',label:'🔥 Shock',rsi:45.2,ema20:0.1966,bbU:0.2037,bbL:0.187,sup:0.187,tp:0.2037,sl:0.183,adx:42.2,chg:0.72,m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',ana:'ใกล้ EMA20 OBV Accumulation AI Narrative'},
+  {s:'BTCUSDT',n:'BTC',full:'Bitcoin',color:'#f7931a',setup:'m2',label:'📊 M2',rsi:45.5,ema20:61061,bbU:61920,bbL:59850,sup:59850,tp:61920,sl:59200,adx:36.1,chg:-0.02,m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',ana:'MACD +82.6 M2 ใกล้จบ รอ Shock EMA30'},
+  {s:'ETHUSDT',n:'ETH',full:'Ethereum',color:'#627eea',setup:'m2',label:'📊 M2',rsi:40.7,ema20:1583,bbU:1614,bbL:1533,sup:1533,tp:1614,sl:1510,adx:60.8,chg:-1.56,m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',ana:'ADX 60.8 MACD Divergence รอ Shock Fib 50%'},
+  {s:'BNBUSDT',n:'BNB',full:'BNB Chain',color:'#f3ba2f',setup:'m2',label:'📊 M2',rsi:43.8,ema20:577,bbU:583.5,bbL:565.2,sup:565.2,tp:583.5,sl:561,adx:43.6,chg:-0.12,m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',ana:'BB Squeeze 0.032 Breakout ใกล้มา'},
+  {s:'RUNEUSDT',n:'RUNE',full:'THORChain',color:'#00c97a',setup:'m2',label:'📊 M2',rsi:45.0,ema20:0.3194,bbU:0.333,bbL:0.3026,sup:0.3026,tp:0.333,sl:0.296,adx:52.2,chg:0.96,m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',ana:'Candle 75% OBV Accumulation รอทะลุ SMA20'},
+  {s:'XRPUSDT',n:'XRP',full:'Ripple',color:'#5fa8e0',setup:'m2',label:'📊 M2',rsi:43.8,ema20:1.096,bbU:1.121,bbL:1.068,sup:1.068,tp:1.121,sl:1.055,adx:42.7,chg:-0.28,m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',ana:'Fib 50% Zone MACD Bull Cross รอ RSI Rising'},
+  {s:'ADAUSDT',n:'ADA',full:'Cardano',color:'#4da7ff',setup:'m2',label:'📊 M2',rsi:43.5,ema20:0.158,bbU:0.1638,bbL:0.1511,sup:0.1511,tp:0.1638,sl:0.149,adx:44.2,chg:-0.32,m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',ana:'Lower Wick 56% Buyers ปกป้อง $0.155'},
+  {s:'LTCUSDT',n:'LTC',full:'Litecoin',color:'#bfbfbf',setup:'m2',label:'📊 M2',rsi:45.6,ema20:43.06,bbU:44.34,bbL:41.64,sup:41.64,tp:44.34,sl:41.0,adx:42.8,chg:0.0,m1:'▼',m2:'⏸',m3:'❓',m1c:'#f85149',m2c:'#d29922',m3c:'#484f58',ana:'Doji = ลังเล รอ Bullish Candle ปิดเหนือ EMA20'},
+  {s:'SOLUSDT',n:'SOL',full:'Solana',color:'#9945ff',setup:'bear',label:'⚠️ Bear',rsi:42.2,ema20:63.35,bbU:65.41,bbL:61.09,sup:61.09,tp:65.41,sl:60.5,adx:55.2,chg:-0.18,m1:'▼',m2:'▼',m3:'❓',m1c:'#f85149',m2c:'#f85149',m3c:'#484f58',ana:'OBV Distribution ADX 55 รอ BB Lower Shock กลับ'},
+  {s:'NEARUSDT',n:'NEAR',full:'NEAR Protocol',color:'#ffffff',setup:'bear',label:'⚠️ Bear',rsi:39.9,ema20:1.956,bbU:2.028,bbL:1.864,sup:1.864,tp:2.028,sl:1.82,adx:46.4,chg:-0.47,m1:'▼',m2:'⏸',m3:'❓',m1c:'#f85149',m2c:'#d29922',m3c:'#484f58',ana:'RSI 39.9 Falling OBV Distribution รอ Reversal'},
+  {s:'ATOMUSDT',n:'ATOM',full:'Cosmos',color:'#6f7390',setup:'bear',label:'⚠️ Bear',rsi:41.3,ema20:1.644,bbU:1.686,bbL:1.585,sup:1.585,tp:1.686,sl:1.56,adx:45.7,chg:-0.80,m1:'▼',m2:'▼',m3:'❓',m1c:'#f85149',m2c:'#f85149',m3c:'#484f58',ana:'Bear Candle 57% OBV Distribution รอ Reversal'},
+];
+
+const API = 'http://localhost:3000/api';
+let liveData = {}, activeFilter = 'all', isLoading = false;
+function fmt(p){return p>=1000?'$'+p.toLocaleString('en',{maximumFractionDigits:2}):p>=1?'$'+p.toFixed(3):'$'+p.toFixed(6);}
+
+// ─── Determine 3 Swings setup from live analysis ───
+function getSetup(ana, candles) {
+  if(!ana||ana.error) return {setup:'–',label:'–',color:'#8b949e',m1:'–',m2:'–',m3:'–',m1c:'#484f58',m2c:'#484f58',m3c:'#484f58',ana:'ไม่มีข้อมูล'};
+  const rsi = ana.rsi?.value||50;
+  const macdH = ana.macd?.histogram||0;
+  const bias = ana.timeframe_context?.bias||'Neutral';
+  const bbPos = ana.bollinger_bands?.position||'';
+  const adx = ana.adx?.value||0;
+  const rsiDir = ana.rsi?.direction||'Flat';
+
+  // 3 Swings logic
+  // M3 Bullish: bias Bullish + RSI>50 + MACD>0 + BB Upper Half
+  if(bias==='Bullish' && rsi>50 && macdH>0 && bbPos.includes('Upper')) {
+    return {setup:'m3',label:'📈 M3 — Bullish',color:'#3fb950',m1:'▼',m2:'✅',m3:'▲',m1c:'#f85149',m2c:'#3fb950',m3c:'#3fb950',
+      ana:`Bias Bullish · RSI ${rsi.toFixed(1)} > 50 · MACD Hist ✅ · BB Upper Half → M3 กำลังเริ่ม`};
+  }
+  // Shock Retest: MACD just turned Bullish + RSI 38-52 Rising (M2 จบ รอ Retest)
+  if(macdH>0 && rsiDir==='Rising' && rsi>=35 && rsi<=55) {
+    const retestZone = ana.bollinger_bands?.lower||0;
+    return {setup:'shock',label:'🔥 Shock Retest Zone',color:'#f59e0b',m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#f59e0b',m3c:'#388bfd',
+      ana:`MACD Hist Bullish +${macdH.toFixed(4)} · RSI ${rsi.toFixed(1)} Rising → M2 ใกล้จบ รอ Retest Fib Zone`};
+  }
+  // M2 Pullback: bearish bias but MACD starting to turn
+  if(bias==='Bearish' && macdH>0 && rsi<55) {
+    return {setup:'m2',label:'📊 M2 Pullback',color:'#58a6ff',m1:'▼',m2:'⏸',m3:'⏳',m1c:'#f85149',m2c:'#d29922',m3c:'#388bfd',
+      ana:`Bias Bearish · MACD พลิก Bullish · RSI ${rsi.toFixed(1)} · รอ Shock ผ่าน EMA30`};
+  }
+  // Strong Bear: RSI falling + ADX strong + bearish
+  if(bias==='Bearish' && rsiDir==='Falling' && adx>40) {
+    return {setup:'bear',label:'⚠️ Strong Bear',color:'#f85149',m1:'▼',m2:'▼',m3:'❓',m1c:'#f85149',m2c:'#f85149',m3c:'#484f58',
+      ana:`Bias Bearish · ADX ${adx} Strong · RSI ${rsi.toFixed(1)} Falling · ยังไม่ใช่เวลาเข้า Long`};
+  }
+  // Neutral/Ranging
+  return {setup:'m2',label:'📊 Sideways',color:'#8b949e',m1:'–',m2:'⏸',m3:'–',m1c:'#484f58',m2c:'#d29922',m3c:'#484f58',
+    ana:`RSI ${rsi.toFixed(1)} · Sideways · รอ Breakout ชัดก่อน`};
+}
+
+// ─── Scan all coins live ───
+async function scanAll() {
+  if(isLoading) return;
+  isLoading = true;
+  const el = document.getElementById('coin-grid');
+  el.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text2)">
+    <div style="width:32px;height:32px;border:2px solid #21262d;border-top-color:#58a6ff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>
+    <div style="font-size:13px">กำลัง Scan ${COINS.length} เหรียญ จาก Binance...</div>
+  </div>`;
+
+  // ดึงราคา + analysis พร้อมกันทุกเหรียญ
+  const [priceRes, ...anaRes] = await Promise.all([
+    fetch(`${API}/prices?symbols=${COINS.map(c=>c.s).join(',')}`).then(r=>r.json()).catch(()=>[]),
+    ...COINS.map(c=>fetch(`${API}/analysis/${c.s}?tf=1h`).then(r=>r.json()).catch(()=>null))
+  ]);
+
+  // Map prices
+  priceRes.forEach(d=>{liveData[d.symbol]={p:+d.lastPrice,chg:+d.priceChangePercent};});
+  // Map analysis
+  COINS.forEach((c,i)=>{if(anaRes[i])liveData[c.s]={...liveData[c.s],ana:anaRes[i]};});
+
+  fetchMarketBar();
+  buildCards();
+  isLoading = false;
+}
+
+function buildCards() {
+  const el = document.getElementById('coin-grid'); el.innerHTML = '';
+  const counts = {m3:0,shock:0,m2:0,bear:0};
+
+  COINS.forEach((c,i) => {
+    const pd  = liveData[c.s]||{};
+    const ana = pd.ana||null;
+    const setup = getSetup(ana);
+
+    counts[setup.setup] = (counts[setup.setup]||0)+1;
+    if(activeFilter!=='all' && setup.setup!==activeFilter) return;
+
+    const p   = pd.p ? fmt(pd.p) : '–';
+    const chg = pd.chg||0;
+    const rsi = ana?.rsi?.value||'–';
+    const ema20 = ana?.ema?.ema20||0;
+    const ema30 = ana?.ema?.ema30||0;
+    const adx   = ana?.adx?.value||0;
+    const macdH = ana?.macd?.histogram||0;
+    const s1    = ana?.support_resistance?.support_1||0;
+    const r1    = ana?.support_resistance?.resistance_1||0;
+
+    const card = document.createElement('a');
+    card.href  = `index.html?coin=${c.s}`;
+    card.className = 'coin-card';
+    card.innerHTML = `
+      <div class="cc-top">
+        <div class="cc-left">
+          <div class="cc-icon" style="background:${c.color}25;color:${c.color}">${c.n}</div>
+          <div><div class="cc-sym">${c.n}</div><div class="cc-full">${c.full}</div></div>
+        </div>
+        <div class="cc-price">
+          <div class="cc-p">${p}</div>
+          <div class="cc-c ${chg>=0?'up':'dn'}">${chg>=0?'▲ +':'▼ '}${Math.abs(chg).toFixed(2)}%</div>
+        </div>
+      </div>
+
+      <span class="tag tag-${setup.setup}" style="margin-top:8px">${setup.label}</span>
+
+      <div style="margin:8px 0 4px">
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text2);margin-bottom:3px">
+          <span>RSI 14</span><span style="color:${typeof rsi==='number'&&rsi<40?'#f85149':rsi>55?'#3fb950':'#d29922'};font-weight:700">${typeof rsi==='number'?rsi.toFixed(1):rsi}</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:3px;height:4px"><div style="width:${typeof rsi==='number'?rsi:50}%;height:100%;border-radius:3px;background:linear-gradient(90deg,#f85149,#d29922,#3fb950)"></div></div>
+      </div>
+
+      <div class="cc-swing" style="margin:10px 0 8px">
+        <div class="cc-sw" style="background:${setup.m1c}18;color:${setup.m1c}">M1 ${setup.m1}</div>
+        <div class="cc-sa">›</div>
+        <div class="cc-sw" style="background:${setup.m2c}18;color:${setup.m2c}">M2 ${setup.m2}</div>
+        <div class="cc-sa">›</div>
+        <div class="cc-sw" style="background:${setup.m3c}18;color:${setup.m3c}">M3 ${setup.m3}</div>
+      </div>
+
+      <div class="cc-levels">
+        <div class="cc-lv"><div class="cc-lv-l">🛡 S1</div><div class="cc-lv-v" style="color:var(--green)">${s1?fmt(s1):'–'}</div></div>
+        <div class="cc-lv"><div class="cc-lv-l">⛔ R1</div><div class="cc-lv-v" style="color:var(--red)">${r1?fmt(r1):'–'}</div></div>
+        <div class="cc-lv"><div class="cc-lv-l">📐 EMA30</div><div class="cc-lv-v" style="color:#f97316">${ema30?fmt(ema30):'–'}</div></div>
+      </div>
+
+      <div style="margin-top:8px;font-size:10px;color:var(--text2);line-height:1.6">${setup.ana}</div>
+
+      <div style="display:flex;gap:6px;margin-top:8px;font-size:9px;font-weight:700">
+        <span style="padding:2px 6px;border-radius:4px;background:#21262d;color:${adx>50?'#f85149':adx>25?'#d29922':'#8b949e'}">ADX ${adx}</span>
+        <span style="padding:2px 6px;border-radius:4px;background:#21262d;color:${macdH>0?'#3fb950':'#f85149'}">MACD ${macdH>0?'+':''}${Number(macdH).toFixed(4)}</span>
+      </div>`;
+    el.appendChild(card);
+  });
+
+  // Update counts
+  const total = Object.values(counts).reduce((a,b)=>a+b,0);
+  document.getElementById('cnt-buy').textContent  = counts.m3||0;
+  document.getElementById('cnt-m3').textContent   = counts.m3||0;
+  document.getElementById('cnt-shock').textContent= counts.shock||0;
+  document.getElementById('cnt-m2').textContent   = counts.m2||0;
+  document.getElementById('cnt-bear').textContent = counts.bear||0;
+  // Update page-sub
+  document.querySelector('.page-sub').textContent = `สแกน ${COINS.length} เหรียญ · แสดงผล ${total} · อัปเดต ${new Date().toLocaleTimeString('th-TH')}`;
+}
+
+function filter(f,btn){
+  activeFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  buildCards();
+}
+
+// Refresh ทุก 60 วินาที
+buildNav('Scanner');
+scanAll();
+setInterval(scanAll, 60000);
+</script>
+</body>
+</html>

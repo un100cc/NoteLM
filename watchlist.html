@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>KLAUD — Watchlist</title><link rel="stylesheet" href="_shared.css">
+<style>
+.wl-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.wl-table-wrap{background:var(--bg1);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.search-box{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:16px;}
+.search-box input{background:none;border:none;outline:none;color:var(--text1);font-size:13px;flex:1;font-family:'Inter',sans-serif;}
+.sort-btn{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;transition:all .15s;}
+.sort-btn:hover{color:var(--text1);}
+.sort-btn.asc::after{content:' ↑';}
+.sort-btn.desc::after{content:' ↓';}
+.sparkline{width:80px;height:30px;}
+.price-bar{display:flex;align-items:center;gap:6px;}
+.price-bar-track{flex:1;background:var(--bg3);border-radius:3px;height:4px;position:relative;}
+.price-bar-fill{height:100%;border-radius:3px;background:var(--blue);}
+.price-bar-dot{position:absolute;top:-3px;width:10px;height:10px;border-radius:50%;background:white;border:2px solid var(--blue);transform:translateX(-50%);}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a href="index.html" class="topbar-logo"><div class="logo-icon">K</div><div class="logo-text">KL<span>AUD</span></div></a>
+  <nav class="topbar-nav" id="topbar-nav"></nav>
+  <div class="topbar-right">
+    <div class="badge-live"><div class="dot"></div>Live</div>
+    <button class="btn btn-ghost" onclick="fetchPrices()">⟳</button>
+    <button class="btn btn-primary" onclick="addCoin()">+ Add Coin</button>
+  </div>
+</header>
+<div class="market-bar" id="market-bar" style="position:fixed;top:52px;left:0;right:0;z-index:99;"></div>
+
+<div class="page-layout" style="margin-top:104px;height:calc(100vh - 104px);">
+  <aside class="sidebar">
+    <div class="sidebar-section">Menu</div>
+    <a href="index.html"     class="sidebar-item"><span class="si-icon">📊</span> Dashboard</a>
+    <a href="scanner.html"   class="sidebar-item"><span class="si-icon">🔍</span> Scanner</a>
+    <a href="watchlist.html" class="sidebar-item active"><span class="si-icon">⭐</span> Watchlist</a>
+    <a href="strategy.html"  class="sidebar-item"><span class="si-icon">📈</span> Strategy</a>
+    <div class="sidebar-section" style="margin-top:8px">Summary</div>
+    <div style="padding:8px 16px;display:flex;flex-direction:column;gap:8px;font-size:12px;">
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Total</span><span id="wl-total" style="font-weight:700">20</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--green)">Gainers</span><span id="wl-gainers" style="font-weight:700;color:var(--green)">–</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--red)">Losers</span><span id="wl-losers" style="font-weight:700;color:var(--red)">–</span></div>
+    </div>
+  </aside>
+  <div class="main-content">
+    <div class="content-body">
+      <div class="wl-header">
+        <div><div class="page-title">⭐ Watchlist</div><div class="page-sub">ติดตามราคาและสัญญาณแบบ Real-time</div></div>
+      </div>
+      <div class="search-box"><span>🔍</span><input id="search-inp" placeholder="ค้นหาเหรียญ..." oninput="renderTable()"></div>
+      <div class="wl-table-wrap">
+        <table class="table" id="wl-table">
+          <thead><tr>
+            <th>เหรียญ</th>
+            <th>ราคา</th>
+            <th>24h %</th>
+            <th>High 24h</th>
+            <th>Low 24h</th>
+            <th>Volume 24h</th>
+            <th>Setup</th>
+            <th>RSI</th>
+            <th>Action</th>
+          </tr></thead>
+          <tbody id="wl-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="_nav.js"></script>
+<script>
+const COINS=[
+  {s:'STXUSDT',n:'STX',full:'Stacks',color:'#9d8fff',setup:'buy',rsi:52.8},
+  {s:'XLMUSDT',n:'XLM',full:'Stellar',color:'#14b6e7',setup:'m3',rsi:53.6},
+  {s:'SUIUSDT',n:'SUI',full:'Sui Network',color:'#4da2ff',setup:'m3',rsi:50.0},
+  {s:'ICPUSDT',n:'ICP',full:'Internet Computer',color:'#f15a24',setup:'m3',rsi:47.1},
+  {s:'AVAXUSDT',n:'AVAX',full:'Avalanche',color:'#e84142',setup:'m3',rsi:45.2},
+  {s:'DOGEUSDT',n:'DOGE',full:'Dogecoin',color:'#c2a633',setup:'shock',rsi:47.7},
+  {s:'DOTUSDT',n:'DOT',full:'Polkadot',color:'#e6007a',setup:'shock',rsi:47.1},
+  {s:'APTUSDT',n:'APT',full:'Aptos',color:'#00b4d8',setup:'shock',rsi:45.1},
+  {s:'LINKUSDT',n:'LINK',full:'Chainlink',color:'#5b8def',setup:'shock',rsi:45.3},
+  {s:'FETUSDT',n:'FET',full:'Fetch.AI',color:'#1eb4d4',setup:'shock',rsi:45.2},
+  {s:'BTCUSDT',n:'BTC',full:'Bitcoin',color:'#f7931a',setup:'m2',rsi:45.5},
+  {s:'ETHUSDT',n:'ETH',full:'Ethereum',color:'#627eea',setup:'m2',rsi:40.7},
+  {s:'BNBUSDT',n:'BNB',full:'BNB Chain',color:'#f3ba2f',setup:'m2',rsi:43.8},
+  {s:'RUNEUSDT',n:'RUNE',full:'THORChain',color:'#00c97a',setup:'m2',rsi:45.0},
+  {s:'XRPUSDT',n:'XRP',full:'Ripple',color:'#5fa8e0',setup:'m2',rsi:43.8},
+  {s:'ADAUSDT',n:'ADA',full:'Cardano',color:'#4da7ff',setup:'m2',rsi:43.5},
+  {s:'LTCUSDT',n:'LTC',full:'Litecoin',color:'#bfbfbf',setup:'m2',rsi:45.6},
+  {s:'SOLUSDT',n:'SOL',full:'Solana',color:'#9945ff',setup:'bear',rsi:42.2},
+  {s:'NEARUSDT',n:'NEAR',full:'NEAR Protocol',color:'#ffffff',setup:'bear',rsi:39.9},
+  {s:'ATOMUSDT',n:'ATOM',full:'Cosmos',color:'#6f7390',setup:'bear',rsi:41.3},
+];
+const setupLabel={buy:'🟢 BUY',m3:'📈 M3',shock:'🔥 Shock',m2:'📊 M2',bear:'⚠️ Bear'};
+const setupClass={buy:'tag-buy',m3:'tag-m3',shock:'tag-shock',m2:'tag-m2',bear:'tag-bear'};
+let tickers={};
+function fmt(p){return p>=1000?'$'+p.toLocaleString('en',{maximumFractionDigits:2}):p>=1?'$'+p.toFixed(4):'$'+p.toFixed(6);}
+function fmtVol(v){return v>=1e9?'$'+(v/1e9).toFixed(1)+'B':v>=1e6?'$'+(v/1e6).toFixed(1)+'M':'$'+(v/1e3).toFixed(0)+'K';}
+
+function renderTable(){
+  const q=document.getElementById('search-inp').value.toLowerCase();
+  const body=document.getElementById('wl-body'); body.innerHTML='';
+  let g=0,l=0;
+  COINS.filter(c=>!q||c.n.toLowerCase().includes(q)||c.full.toLowerCase().includes(q)).forEach((c,i)=>{
+    const t=tickers[c.s]||{};
+    const p=t.p||0,chg=t.chg||0,hi=t.h||0,lo=t.l||0,vol=t.v||0;
+    if(chg>0)g++;else if(chg<0)l++;
+    const pct=hi>lo?Math.round(((p-lo)/(hi-lo))*100):50;
+    const tr=document.createElement('tr');
+    tr.onclick=()=>location.href=`index.html`;
+    tr.innerHTML=`
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div style="width:28px;height:28px;border-radius:50%;background:${c.color}25;color:${c.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">${c.n.slice(0,3)}</div>
+        <div><div style="font-weight:700;font-size:13px">${c.n}</div><div style="font-size:10px;color:var(--text2)">${c.full}</div></div>
+      </div></td>
+      <td><div style="font-family:'JetBrains Mono',monospace;font-weight:700">${p?fmt(p):'–'}</div>
+        <div class="price-bar" style="margin-top:4px"><div class="price-bar-track"><div class="price-bar-fill" style="width:${pct}%"></div><div class="price-bar-dot" style="left:${pct}%"></div></div></div>
+      </td>
+      <td><span style="font-weight:700;color:${chg>=0?'var(--green)':'var(--red)'}">${chg>=0?'▲ +':'▼ '}${Math.abs(chg).toFixed(2)}%</span></td>
+      <td style="color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:12px">${hi?fmt(hi):'–'}</td>
+      <td style="color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:12px">${lo?fmt(lo):'–'}</td>
+      <td style="color:var(--text2);font-size:12px">${vol?fmtVol(vol*p):'–'}</td>
+      <td><span class="tag ${setupClass[c.setup]}">${setupLabel[c.setup]}</span></td>
+      <td><div style="display:flex;align-items:center;gap:6px">
+        <div style="width:36px;background:var(--bg3);border-radius:3px;height:4px"><div style="width:${c.rsi}%;height:100%;border-radius:3px;background:linear-gradient(90deg,#f85149,#d29922,#3fb950)"></div></div>
+        <span style="font-size:11px;color:var(--text2)">${c.rsi}</span>
+      </div></td>
+      <td><a href="index.html" style="color:var(--blue);font-size:12px;text-decoration:none;font-weight:600">กราฟ →</a></td>`;
+    body.appendChild(tr);
+  });
+  document.getElementById('wl-gainers').textContent=g;
+  document.getElementById('wl-losers').textContent=l;
+}
+
+async function fetchPrices(){
+  try{
+    const res=await fetch('https://api.binance.com/api/v3/ticker/24hr?symbols=['+COINS.map(c=>`"${c.s}"`).join(',')+']');
+    const data=await res.json();
+    data.forEach(d=>{tickers[d.symbol]={p:+d.lastPrice,chg:+d.priceChangePercent,h:+d.highPrice,l:+d.lowPrice,v:+d.volume};});
+    fetchMarketBar();
+    renderTable();
+  }catch(e){renderTable();}
+}
+
+function addCoin(){alert('ฟีเจอร์นี้จะพัฒนาเพิ่มเติมในเวอร์ชันถัดไปครับ');}
+buildNav('Watchlist');
+fetchPrices();
+setInterval(fetchPrices,30000);
+</script>
+</body></html>
