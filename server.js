@@ -270,6 +270,46 @@ app.get('/api/analysis/:symbol', async (req, res) => {
       },
       source: 'binance-calculated',
     };
+
+    // ─── Trade Setup (entry / TP / SL) คำนวณจาก S/R + EMA ───
+    const price = last.close;
+    const isBull = bias === 'Bullish';
+    const pullbackEntry = isBull
+      ? Math.round((emas.ema20 || s1) * 10000) / 10000
+      : Math.round(r1 * 10000) / 10000;
+    const breakoutEntry = isBull
+      ? Math.round(r1 * 10000) / 10000
+      : Math.round(s1 * 10000) / 10000;
+    const stopLoss = isBull
+      ? Math.round(Math.min(s1, pullbackEntry * 0.985) * 10000) / 10000
+      : Math.round(Math.max(r1, pullbackEntry * 1.015) * 10000) / 10000;
+    const slDist = Math.abs(pullbackEntry - stopLoss);
+    const tp1 = isBull
+      ? Math.round((pullbackEntry + slDist * 1.5) * 10000) / 10000
+      : Math.round((pullbackEntry - slDist * 1.5) * 10000) / 10000;
+    const tp2 = isBull
+      ? Math.round((pullbackEntry + slDist * 2.5) * 10000) / 10000
+      : Math.round((pullbackEntry - slDist * 2.5) * 10000) / 10000;
+    const slPct = Math.round(Math.abs((stopLoss - pullbackEntry) / pullbackEntry) * 10000) / 100;
+
+    data.trade_setup = {
+      setup_types: isBull ? ['pullback', 'breakout'] : ['pullback'],
+      entry_points: { pullback_entry: pullbackEntry, breakout_entry: breakoutEntry },
+      stop_loss: stopLoss,
+      stop_distance_pct: slPct,
+      targets: { target_1: tp1, target_2: tp2 },
+      risk_reward: { to_target_1: 1.5, to_target_2: 2.5, quality: 'Good' },
+      supports: [Math.round(s1*10000)/10000, Math.round(s1*0.985*10000)/10000],
+      resistances: [Math.round(r1*10000)/10000, Math.round(r1*1.015*10000)/10000],
+      trade_notes: [
+        isBull ? 'รอ Retest EMA20 เป็น Entry (Pullback)' : 'รอ Bounce จาก S1 ก่อนเข้า',
+        `SL ไว้ใต้ S1 ห่าง ${slPct}%`,
+        `TP1 : TP2 = 1.5R : 2.5R`,
+      ],
+    };
+    data.trade_quality = slPct < 3 ? 'Good Setup' : slPct < 6 ? 'Normal Setup' : 'Wide Stop';
+    data.trade_quality_score = slPct < 3 ? 70 : 55;
+
     setCache(key, data, CACHE_TTL.analysis);
     res.json(data);
   } catch(e) {
