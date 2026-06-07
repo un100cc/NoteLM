@@ -95,6 +95,13 @@
     <a href="watchlist.html" class="sidebar-item"><span class="si-icon">⭐</span>Watchlist</a>
     <a href="strategy.html"  class="sidebar-item"><span class="si-icon">📈</span>Strategy</a>
     <div class="sidebar-section" style="margin-top:6px">Watchlist</div>
+    <div style="padding:4px 8px 2px">
+      <div style="display:flex;gap:4px">
+        <input id="coin-input" placeholder="เพิ่ม เช่น SOLUSDT" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text1);outline:none" onkeydown="if(event.key==='Enter')addCoin()"/>
+        <button onclick="addCoin()" style="background:var(--blue-dim);border:1px solid var(--blue);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--blue);cursor:pointer;font-weight:700">+</button>
+      </div>
+      <div id="add-msg" style="font-size:10px;color:var(--text3);margin-top:3px;height:14px"></div>
+    </div>
     <div id="sidebar-coins" style="padding:4px 8px;"></div>
   </aside>
 
@@ -114,10 +121,11 @@
             <div style="font-size:11px;font-weight:700;margin-top:1px" id="cc-chg">–</div>
           </div>
           <div class="tf-row">
-            <button class="tf-btn" onclick="changeTF('15m',this)">15m</button>
             <button class="tf-btn" onclick="changeTF('1h',this)">1H</button>
             <button class="tf-btn" onclick="changeTF('4h',this)">4H</button>
             <button class="tf-btn active" onclick="changeTF('1d',this)">1D</button>
+            <button class="tf-btn" onclick="changeTF('1w',this)">1W</button>
+            <button class="tf-btn" onclick="changeTF('1M',this)">1M</button>
             <div class="ptogs">
               <button class="ptog p123 on" id="tog123" onclick="toggleP('123')">3 Swings</button>
             </div>
@@ -165,7 +173,7 @@
 <script src="_nav.js"></script>
 <script>
 const API='http://localhost:3000/api';
-const COINS=[
+const DEFAULT_COINS=[
   {s:'BTCUSDT', n:'BTC', full:'Bitcoin',     color:'#f7931a'},
   {s:'ETHUSDT', n:'ETH', full:'Ethereum',    color:'#627eea'},
   {s:'STXUSDT', n:'STX', full:'Stacks',      color:'#9d8fff'},
@@ -177,6 +185,38 @@ const COINS=[
   {s:'AVAXUSDT',n:'AVAX',full:'Avalanche',   color:'#e84142'},
   {s:'DOTUSDT', n:'DOT', full:'Polkadot',    color:'#e6007a'},
 ];
+// โหลด custom coins จาก localStorage
+const CUSTOM_KEY='klaud_custom_coins';
+function loadSaved(){try{return JSON.parse(localStorage.getItem(CUSTOM_KEY)||'[]');}catch{return[];}}
+function saveCoin(c){const arr=loadSaved();if(!arr.find(x=>x.s===c.s)){arr.push(c);localStorage.setItem(CUSTOM_KEY,JSON.stringify(arr));}}
+function removeSavedCoin(s){const arr=loadSaved().filter(x=>x.s!==s);localStorage.setItem(CUSTOM_KEY,JSON.stringify(arr));}
+const COLORS=['#06b6d4','#8b5cf6','#ec4899','#10b981','#f97316','#6366f1','#14b8a6','#f43f5e','#a855f7','#22d3ee'];
+let colorIdx=0;
+const COINS=[...DEFAULT_COINS,...loadSaved()];
+
+async function addCoin(){
+  const input=document.getElementById('coin-input');
+  const msg=document.getElementById('add-msg');
+  let sym=input.value.trim().toUpperCase();
+  if(!sym){msg.style.color='#f85149';msg.textContent='กรอก symbol ก่อน';return;}
+  // auto-append USDT ถ้าไม่มี
+  if(!sym.endsWith('USDT')&&!sym.endsWith('BTC')&&!sym.endsWith('ETH'))sym+='USDT';
+  if(COINS.find(c=>c.s===sym)){msg.style.color='#d29922';msg.textContent=sym+' มีอยู่แล้ว';return;}
+  msg.style.color='var(--text2)';msg.textContent='⏳ ตรวจสอบ...';
+  try{
+    const r=await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
+    if(!r.ok)throw new Error('ไม่พบ symbol นี้บน Binance');
+    const d=await r.json();
+    const name=sym.replace('USDT','').replace('BTC','').replace('ETH','');
+    const coin={s:sym,n:name,full:name,color:COLORS[colorIdx++%COLORS.length],custom:true};
+    COINS.push(coin);
+    saveCoin(coin);
+    input.value='';
+    msg.style.color='#3fb950';msg.textContent='✅ เพิ่ม '+sym+' แล้ว';
+    buildSidebar();
+    setTimeout(()=>{msg.textContent='';},3000);
+  }catch(e){msg.style.color='#f85149';msg.textContent='❌ '+e.message;}
+}
 let idx=0,tf='1d',chartMain=null,chartRSI=null,tvData={};
 let show123=true,showABC=true;
 let patSeries=[];
@@ -187,7 +227,7 @@ function calcRSIArr(closes,p=14){let g=0,l=0;for(let i=1;i<=p;i++){const d=close
 function calcBBArr(closes,p=20,m=2){return closes.map((_,i)=>{if(i<p-1)return null;const sl=closes.slice(i-p+1,i+1),avg=sl.reduce((a,b)=>a+b,0)/p,std=Math.sqrt(sl.reduce((a,b)=>a+(b-avg)**2,0)/p);return{upper:avg+m*std,lower:avg-m*std};});}
 
 // ─── SWING DETECTION ───
-function swingLB(){return tf==='1d'?10:tf==='4h'?7:tf==='1h'?5:3;}
+function swingLB(){return tf==='1M'?3:tf==='1w'?4:tf==='1d'?10:tf==='4h'?7:5;}
 function findSwings(candles){
   const lb=swingLB(),highs=[],lows=[];
   for(let i=lb;i<candles.length-lb;i++){
@@ -596,12 +636,26 @@ async function loadCoin(i){
 // ─── SIDEBAR / SCANNER ───
 function buildSidebar(){
   const el=document.getElementById('sidebar-coins');
+  el.innerHTML='';
   COINS.forEach((c,i)=>{
     const d=document.createElement('div');
-    d.className='coin-item'+(i===0?' active':'');d.id='sc-'+i;
-    d.innerHTML=`<div class="coin-dot" style="background:${c.color}"></div><span style="font-size:12px;font-weight:700;flex:1">${c.n}</span><span style="font-size:10px;font-weight:600" id="sp-${i}">–</span>`;
-    d.onclick=()=>loadCoin(i);el.appendChild(d);
+    d.className='coin-item'+(i===idx?' active':'');d.id='sc-'+i;
+    d.innerHTML=`
+      <div class="coin-dot" style="background:${c.color}"></div>
+      <span style="font-size:12px;font-weight:700;flex:1;cursor:pointer" onclick="loadCoin(${i})">${c.n}</span>
+      <span style="font-size:10px;font-weight:600" id="sp-${i}">–</span>
+      ${c.custom?`<span onclick="delCoin('${c.s}')" style="font-size:10px;color:var(--text3);cursor:pointer;padding:0 2px;margin-left:2px" title="ลบ">✕</span>`:''}
+    `;
+    d.querySelector('span')?.addEventListener('click',()=>loadCoin(i));
+    el.appendChild(d);
   });
+}
+function delCoin(s){
+  const i=COINS.findIndex(c=>c.s===s);
+  if(i>-1){COINS.splice(i,1);removeSavedCoin(s);}
+  if(idx>=COINS.length)idx=COINS.length-1;
+  buildSidebar();
+  loadCoin(idx);
 }
 
 async function buildScanner(){
