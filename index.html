@@ -96,10 +96,17 @@
     <a href="strategy.html"  class="sidebar-item"><span class="si-icon">📈</span>Strategy</a>
     <div class="sidebar-section" style="margin-top:6px">Watchlist</div>
     <div style="padding:4px 8px 2px">
-      <div style="display:flex;gap:4px">
-        <input id="coin-input" placeholder="เพิ่ม เช่น SOLUSDT" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text1);outline:none" onkeydown="if(event.key==='Enter')addCoin()"/>
+      <div style="display:flex;gap:4px;margin-bottom:4px">
+        <input id="coin-input" placeholder="AAPL, BTCUSDT, XAUUSD..." style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text1);outline:none" onkeydown="if(event.key==='Enter')addCoin()"/>
         <button onclick="addCoin()" style="background:var(--blue-dim);border:1px solid var(--blue);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--blue);cursor:pointer;font-weight:700">+</button>
       </div>
+      <select id="exchange-select" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:10px;color:var(--text2);outline:none">
+        <option value="BINANCE">🟡 BINANCE (Crypto)</option>
+        <option value="NASDAQ">🔵 NASDAQ (US Tech)</option>
+        <option value="NYSE">🔵 NYSE (US Stocks)</option>
+        <option value="FOREXCOM">🟢 FOREX (FX / Gold)</option>
+        <option value="BITKUB">🇹🇭 BITKUB (Thai Crypto)</option>
+      </select>
       <div id="add-msg" style="font-size:10px;color:var(--text3);margin-top:3px;height:14px"></div>
     </div>
     <div id="sidebar-coins" style="padding:4px 8px;"></div>
@@ -196,23 +203,36 @@ const COINS=[...DEFAULT_COINS,...loadSaved()];
 
 async function addCoin(){
   const input=document.getElementById('coin-input');
+  const exchSel=document.getElementById('exchange-select');
   const msg=document.getElementById('add-msg');
   let sym=input.value.trim().toUpperCase();
+  const exchange=exchSel?exchSel.value:'BINANCE';
   if(!sym){msg.style.color='#f85149';msg.textContent='กรอก symbol ก่อน';return;}
-  // auto-append USDT ถ้าไม่มี
-  if(!sym.endsWith('USDT')&&!sym.endsWith('BTC')&&!sym.endsWith('ETH'))sym+='USDT';
-  if(COINS.find(c=>c.s===sym)){msg.style.color='#d29922';msg.textContent=sym+' มีอยู่แล้ว';return;}
+
+  // สำหรับ Binance: auto-append USDT
+  if(exchange==='BINANCE'){
+    if(!sym.endsWith('USDT')&&!sym.endsWith('BTC')&&!sym.endsWith('ETH'))sym+='USDT';
+  }
+
+  const key=exchange==='BINANCE'?sym:`${exchange}:${sym}`;
+  if(COINS.find(c=>c.s===key)){msg.style.color='#d29922';msg.textContent=key+' มีอยู่แล้ว';return;}
   msg.style.color='var(--text2)';msg.textContent='⏳ ตรวจสอบ...';
   try{
-    const r=await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
-    if(!r.ok)throw new Error('ไม่พบ symbol นี้บน Binance');
-    const d=await r.json();
-    const name=sym.replace('USDT','').replace('BTC','').replace('ETH','');
-    const coin={s:sym,n:name,full:name,color:COLORS[colorIdx++%COLORS.length],custom:true};
+    if(exchange==='BINANCE'){
+      const r=await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
+      if(!r.ok)throw new Error('ไม่พบ symbol นี้บน Binance');
+    } else {
+      // ตรวจผ่าน TradingView MCP endpoint
+      const r=await fetch(`${API}/tv-analysis/${sym}?exchange=${exchange}&tf=1d`);
+      if(!r.ok)throw new Error('ไม่พบ '+sym+' บน '+exchange);
+    }
+    const name=sym.replace('USDT','');
+    const exchLabel={'BINANCE':'🟡','NASDAQ':'🔵','NYSE':'🔵','FOREXCOM':'🟢','BITKUB':'🇹🇭'}[exchange]||'⚪';
+    const coin={s:key,n:exchLabel+sym,full:sym,color:COLORS[colorIdx++%COLORS.length],custom:true,exchange};
     COINS.push(coin);
     saveCoin(coin);
     input.value='';
-    msg.style.color='#3fb950';msg.textContent='✅ เพิ่ม '+sym+' แล้ว';
+    msg.style.color='#3fb950';msg.textContent='✅ เพิ่ม '+sym+' ('+exchange+') แล้ว';
     buildSidebar();
     setTimeout(()=>{msg.textContent='';},3000);
   }catch(e){msg.style.color='#f85149';msg.textContent='❌ '+e.message;}
@@ -621,8 +641,16 @@ async function loadCoin(i){
   loading.style.display='flex';
   document.getElementById('load-msg').textContent=`กำลังโหลด ${c.n}...`;
 
-  const candlesP=fetch(`${API}/candles/${c.s}?interval=${tf}&limit=300`).then(r=>r.json()).catch(()=>[]);
-  const anaP=fetch(`${API}/analysis/${c.s}?tf=${tf}`).then(r=>r.json()).catch(()=>null);
+  // ถ้า exchange !== BINANCE ให้ดึงผ่าน TradingView MCP endpoint
+  const isTVAsset = c.exchange && c.exchange !== 'BINANCE';
+  const rawSym = isTVAsset ? c.s.replace(/^[^:]+:/,'') : c.s;
+  const exchParam = c.exchange || 'BINANCE';
+  const candlesP = isTVAsset
+    ? Promise.resolve([])  // TV assets ไม่มี candle Binance
+    : fetch(`${API}/candles/${c.s}?interval=${tf}&limit=300`).then(r=>r.json()).catch(()=>[]);
+  const anaP = isTVAsset
+    ? fetch(`${API}/tv-analysis/${rawSym}?exchange=${exchParam}&tf=${tf}`).then(r=>r.json()).catch(()=>null)
+    : fetch(`${API}/analysis/${c.s}?tf=${tf}`).then(r=>r.json()).catch(()=>null);
 
   // Analysis ปรากฏทันที ไม่ต้องรอ chart
   anaP.then(a=>{if(a&&!a.error){tvData[c.s]=a;updateAnalysisPanel(c,a);updatePriceHeader(c,a);}});
