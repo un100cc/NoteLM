@@ -13,7 +13,7 @@ app.use(express.json());
 
 // ─── Clean URL routes — ต้องอยู่ก่อน static middleware ───
 ['/', '/dashboard'].forEach(r => app.get(r, (_, res) => res.sendFile(path.join(__dirname, 'index.html'))));
-['scanner', 'watchlist', 'strategy'].forEach(p =>
+['scanner', 'watchlist', 'log', 'strategy'].forEach(p =>
   app.get(`/${p}`, (_, res) => res.sendFile(path.join(__dirname, `${p}.html`)))
 );
 
@@ -369,34 +369,6 @@ app.get('/api/prices', async (req, res) => {
 // ─── API: MCP status ───
 app.get('/api/status', (req, res) => res.json({ mcp: mcpReady, ts: new Date().toISOString() }));
 
-// ─── API: TradingView MCP analysis (stocks, forex, crypto ทุก exchange) ───
-app.get('/api/tv-analysis/:symbol', async (req, res) => {
-  const { symbol } = req.params;
-  const { exchange = 'BINANCE', tf = '1d' } = req.query;
-  if (!mcpReady) return res.status(503).json({ error: 'MCP not ready' });
-
-  const key = `tv:${exchange}:${symbol}:${tf}`;
-  const cached = getCache(key);
-  if (cached) return res.json(cached);
-
-  // map TF format: 1d→1D, 1w→1W, 1M→1M, 4h→4H, 1h→1H
-  const tfMap = { '15m':'15', '1h':'60', '4h':'240', '1d':'1D', '1w':'1W', '1M':'1M' };
-  const tvTF = tfMap[tf] || '1D';
-
-  try {
-    const result = await callMCP('tools/call', {
-      name: 'coin_analysis',
-      arguments: { symbol, exchange, timeframe: tvTF }
-    }, 30000);
-    const content = result.result?.content?.[0]?.text;
-    if (!content) throw new Error('No data from MCP');
-    const data = JSON.parse(content);
-    setCache(key, data, CACHE_TTL.analysis);
-    res.json(data);
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
-});
 
 const PORT = 3000;
 app.listen(PORT, async () => {
