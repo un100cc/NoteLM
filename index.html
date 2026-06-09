@@ -167,16 +167,26 @@
 <script>
 const API='http://localhost:3000/api';
 const DEFAULT_COINS=[
-  {s:'BTCUSDT', n:'BTC', full:'Bitcoin',     color:'#f7931a'},
-  {s:'ETHUSDT', n:'ETH', full:'Ethereum',    color:'#627eea'},
-  {s:'STXUSDT', n:'STX', full:'Stacks',      color:'#9d8fff'},
-  {s:'XLMUSDT', n:'XLM', full:'Stellar',     color:'#14b6e7'},
-  {s:'SUIUSDT', n:'SUI', full:'Sui Network', color:'#4da2ff'},
-  {s:'DOGEUSDT',n:'DOGE',full:'Dogecoin',    color:'#c2a633'},
-  {s:'SOLUSDT', n:'SOL', full:'Solana',      color:'#9945ff'},
-  {s:'BNBUSDT', n:'BNB', full:'BNB Chain',   color:'#f3ba2f'},
-  {s:'AVAXUSDT',n:'AVAX',full:'Avalanche',   color:'#e84142'},
-  {s:'DOTUSDT', n:'DOT', full:'Polkadot',    color:'#e6007a'},
+  {s:'BTCUSDT', n:'BTC', full:'Bitcoin',          color:'#f7931a'},
+  {s:'ETHUSDT', n:'ETH', full:'Ethereum',         color:'#627eea'},
+  {s:'BNBUSDT', n:'BNB', full:'BNB Chain',        color:'#f3ba2f'},
+  {s:'SOLUSDT', n:'SOL', full:'Solana',           color:'#9945ff'},
+  {s:'XRPUSDT', n:'XRP', full:'Ripple',           color:'#5fa8e0'},
+  {s:'ADAUSDT', n:'ADA', full:'Cardano',          color:'#4da7ff'},
+  {s:'DOTUSDT', n:'DOT', full:'Polkadot',         color:'#e6007a'},
+  {s:'LINKUSDT',n:'LINK',full:'Chainlink',        color:'#5b8def'},
+  {s:'AVAXUSDT',n:'AVAX',full:'Avalanche',        color:'#e84142'},
+  {s:'SUIUSDT', n:'SUI', full:'Sui Network',      color:'#4da2ff'},
+  {s:'STXUSDT', n:'STX', full:'Stacks',           color:'#9d8fff'},
+  {s:'XLMUSDT', n:'XLM', full:'Stellar',          color:'#14b6e7'},
+  {s:'ICPUSDT', n:'ICP', full:'Internet Computer',color:'#f15a24'},
+  {s:'DOGEUSDT',n:'DOGE',full:'Dogecoin',         color:'#c2a633'},
+  {s:'APTUSDT', n:'APT', full:'Aptos',            color:'#00b4d8'},
+  {s:'FETUSDT', n:'FET', full:'Fetch.AI',         color:'#1eb4d4'},
+  {s:'RUNEUSDT',n:'RUNE',full:'THORChain',        color:'#00c97a'},
+  {s:'NEARUSDT',n:'NEAR',full:'NEAR Protocol',    color:'#eaeaea'},
+  {s:'ATOMUSDT',n:'ATOM',full:'Cosmos',           color:'#6f7390'},
+  {s:'LTCUSDT', n:'LTC', full:'Litecoin',         color:'#bfbfbf'},
 ];
 // โหลด custom coins จาก localStorage
 const CUSTOM_KEY='klaud_custom_coins';
@@ -780,7 +790,20 @@ buildNav('Dashboard');
 buildSidebar();
 refreshPrices();
 const urlCoin=new URLSearchParams(location.search).get('coin');
-const startIdx=urlCoin?Math.max(0,COINS.findIndex(c=>c.s===urlCoin)):0;
+let startIdx=0;
+if(urlCoin){
+  let idx=COINS.findIndex(c=>c.s===urlCoin);
+  if(idx===-1){
+    // coin ไม่อยู่ใน list → auto-add แล้วโหลด
+    const sym=urlCoin.toUpperCase();
+    const name=sym.replace('USDT','');
+    const COLORS=['#06b6d4','#8b5cf6','#ec4899','#10b981','#f97316','#6366f1','#14b8a6','#f43f5e','#a855f7','#22d3ee'];
+    const coin={s:sym,n:name,full:name,color:COLORS[COINS.length%COLORS.length],custom:true};
+    COINS.push(coin);
+    idx=COINS.length-1;
+  }
+  startIdx=idx;
+}
 loadCoin(startIdx);
 setInterval(refreshPrices,30000);
 // Prefetch
