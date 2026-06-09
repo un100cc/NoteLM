@@ -797,8 +797,7 @@ if(urlCoin){
     // coin ไม่อยู่ใน list → auto-add แล้วโหลด
     const sym=urlCoin.toUpperCase();
     const name=sym.replace('USDT','');
-    const COLORS=['#06b6d4','#8b5cf6','#ec4899','#10b981','#f97316','#6366f1','#14b8a6','#f43f5e','#a855f7','#22d3ee'];
-    const coin={s:sym,n:name,full:name,color:COLORS[COINS.length%COLORS.length],custom:true};
+    const coin={s:sym,n:name,full:name,color:COLORS[colorIdx++%COLORS.length],custom:true};
     COINS.push(coin);
     idx=COINS.length-1;
   }
