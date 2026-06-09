@@ -109,7 +109,7 @@ function renderTable(){
     if(chg>0)g++;else if(chg<0)l++;
     const pct=hi>lo?Math.round(((p-lo)/(hi-lo))*100):50;
     const tr=document.createElement('tr');
-    tr.onclick=()=>location.href=`index.html`;
+    tr.onclick=()=>location.href=`index.html?coin=${c.s}`;
     tr.innerHTML=`
       <td><div style="display:flex;align-items:center;gap:8px">
         <div style="width:28px;height:28px;border-radius:50%;background:${c.color}25;color:${c.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">${c.n.slice(0,3)}</div>
@@ -127,7 +127,7 @@ function renderTable(){
         <div style="width:36px;background:var(--bg3);border-radius:3px;height:4px"><div style="width:${c.rsi}%;height:100%;border-radius:3px;background:linear-gradient(90deg,#f85149,#d29922,#3fb950)"></div></div>
         <span style="font-size:11px;color:var(--text2)">${c.rsi}</span>
       </div></td>
-      <td><a href="index.html" style="color:var(--blue);font-size:12px;text-decoration:none;font-weight:600">กราฟ →</a></td>`;
+      <td><a href="index.html?coin=${c.s}" style="color:var(--blue);font-size:12px;text-decoration:none;font-weight:600">กราฟ →</a></td>`;
     body.appendChild(tr);
   });
   document.getElementById('wl-gainers').textContent=g;

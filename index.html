@@ -372,14 +372,22 @@ function drawPatterns(candles, mainChart, cs){
     };
 
     // ── M1 Line — impulse move ──
-    const m1s = mainChart.addLineSeries({color:C.m1,lineWidth:3,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    const m1s = mainChart.addLineSeries({color:C.m1,lineWidth:4,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     m1s.setData([{time:p.M1start.time,value:p.M1start.value},{time:p.M1end.time,value:p.M1end.value}]);
     patSeries.push(m1s);
+    // M1 End level — horizontal dotted ลากถึงปัจจุบัน (Shock reference)
+    const m1LvL = mainChart.addLineSeries({color:C.m1,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    m1LvL.setData([{time:p.M1end.time,value:p.M1end.value},{time:lastTime,value:p.M1end.value}]);
+    patSeries.push(m1LvL);
 
     // ── M2 Line — pullback ──
-    const m2s = mainChart.addLineSeries({color:C.m2,lineWidth:3,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    const m2s = mainChart.addLineSeries({color:C.m2,lineWidth:4,lineStyle:LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     m2s.setData([{time:p.M1end.time,value:p.M1end.value},{time:p.M2low.time,value:p.M2low.value}]);
     patSeries.push(m2s);
+    // M2 Low level — horizontal dotted ลากถึงปัจจุบัน (Retest/Entry zone)
+    const m2LvL = mainChart.addLineSeries({color:C.m2,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    m2LvL.setData([{time:p.M2low.time,value:p.M2low.value},{time:lastTime,value:p.M2low.value}]);
+    patSeries.push(m2LvL);
 
     // ── Fib 33.3% — เขียว ──
     const f33s = mainChart.addLineSeries({color:'#4ade80',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});

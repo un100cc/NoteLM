@@ -6,7 +6,7 @@
 <title>KLAUD · Trade Log</title>
 <link rel="stylesheet" href="_shared.css"/>
 <style>
-body{padding-top:52px;}
+body{padding-top:84px;}
 .market-bar{height:32px;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0;overflow:hidden;padding:0 8px;}
 .market-ticker{display:flex;align-items:center;gap:5px;padding:0 10px;border-right:1px solid var(--border);font-size:11px;white-space:nowrap;}
 .mt-sym{color:var(--text2);font-weight:700;}
@@ -86,7 +86,7 @@ select.form-input option{background:var(--bg2);}
     <div class="badge-live"><div class="dot"></div>LIVE</div>
   </div>
 </div>
-<div class="market-bar" id="market-bar"></div>
+<div class="market-bar" id="market-bar" style="position:fixed;top:52px;left:0;right:0;z-index:99;"></div>
 
 <div class="page">
   <div class="page-title">📋 Trade Log</div>

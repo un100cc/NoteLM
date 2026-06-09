@@ -30,36 +30,48 @@ function getCache(key) {
 }
 function setCache(key, data, ttl) { cache.set(key, { data, ts: Date.now(), ttl }); }
 
-// ─── TradingView MCP Bridge ───
+// ─── TradingView MCP Bridge (optional) ───
 const MCP_EXE = 'C:\\Users\\kingd\\.local\\bin\\tradingview-mcp.exe';
 let mcpReady = false;
 let msgId = 1;
 const pending = {};
 let buf = '';
+let mcp = null;
 
-const mcp = spawn(MCP_EXE, ['stdio'], { windowsHide: true });
+const fs = require('fs');
+try {
+  if (fs.existsSync(MCP_EXE)) {
+    mcp = spawn(MCP_EXE, ['stdio'], { windowsHide: true, shell: false });
 
-mcp.stdout.on('data', data => {
-  buf += data.toString();
-  const lines = buf.split('\n');
-  buf = lines.pop();
-  lines.forEach(line => {
-    if (!line.trim()) return;
-    try {
-      const msg = JSON.parse(line);
-      if (msg.id && pending[msg.id]) {
-        clearTimeout(pending[msg.id].timer);
-        pending[msg.id].resolve(msg);
-        delete pending[msg.id];
-      }
-    } catch(e) {}
-  });
-});
+    mcp.stdout.on('data', data => {
+      buf += data.toString();
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      lines.forEach(line => {
+        if (!line.trim()) return;
+        try {
+          const msg = JSON.parse(line);
+          if (msg.id && pending[msg.id]) {
+            clearTimeout(pending[msg.id].timer);
+            pending[msg.id].resolve(msg);
+            delete pending[msg.id];
+          }
+        } catch(e) {}
+      });
+    });
 
-mcp.stderr.on('data', d => process.env.DEBUG && console.error('[MCP]', d.toString().trim()));
-mcp.on('error', e => console.error('MCP spawn error:', e.message));
+    mcp.stderr.on('data', d => process.env.DEBUG && console.error('[MCP]', d.toString().trim()));
+    mcp.on('error', e => { console.error('MCP spawn error:', e.message); mcp = null; });
+  } else {
+    console.log('⚠️  TradingView MCP not found — skipping (Binance-only mode)');
+  }
+} catch(e) {
+  console.error('⚠️  MCP init error:', e.message, '— running in Binance-only mode');
+  mcp = null;
+}
 
 function callMCP(method, params = {}, timeout = 30000) {
+  if (!mcp) return Promise.reject(new Error('MCP not available'));
   return new Promise((resolve, reject) => {
     const id = msgId++;
     const timer = setTimeout(() => {
@@ -72,6 +84,7 @@ function callMCP(method, params = {}, timeout = 30000) {
 }
 
 async function initMCP() {
+  if (!mcp) return;
   try {
     await callMCP('initialize', {
       protocolVersion: '2024-11-05',

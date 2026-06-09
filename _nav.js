@@ -25,17 +25,16 @@ async function fetchMarketBar() {
     const data = await res.json();
     const bar = document.getElementById('market-bar');
     if (!bar) return;
-    bar.innerHTML = '';
-    data.forEach(d => {
+    bar.innerHTML = data.map(d => {
       const p = parseFloat(d.lastPrice);
       const chg = parseFloat(d.priceChangePercent);
       const sym = d.symbol.replace('USDT','');
       const fmtP = p >= 1000 ? '$'+p.toLocaleString('en',{maximumFractionDigits:2}) : p >= 1 ? '$'+p.toFixed(3) : '$'+p.toFixed(5);
-      bar.innerHTML += `<div class="market-ticker">
+      return `<div class="market-ticker">
         <span class="mt-sym">${sym}</span>
         <span class="mt-price">${fmtP}</span>
         <span class="mt-chg ${chg>=0?'up':'dn'}">${chg>=0?'▲':'▼'}${Math.abs(chg).toFixed(2)}%</span>
       </div>`;
-    });
+    }).join('');
   } catch(e) {}
 }
