@@ -37,6 +37,12 @@ select.form-input option{background:var(--bg2);}
 .form-actions{display:flex;gap:10px;align-items:center;}
 .btn-validate{background:var(--blue);color:#fff;border:none;border-radius:7px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;}
 .btn-validate:hover{opacity:.85;}
+.btn-auto{background:#f59e0b;color:#fff;border:none;border-radius:7px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-auto:hover{opacity:.85;}
+.btn-auto:disabled{opacity:.5;cursor:wait;}
+.auto-chart-wrap{background:var(--bg1);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:24px;}
+.auto-chart-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;}
+#auto-chart{width:100%;height:280px;display:block;}
 .btn-clear{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:9px 16px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;}
 .btn-clear:hover{color:var(--text1);}
 .type-toggle{display:flex;gap:4px;}
@@ -124,10 +130,17 @@ select.form-input option{background:var(--bg2);}
     <div class="wave-pts" id="wave-pts-grid"></div>
 
     <div class="form-actions">
+      <button class="btn-auto" id="btn-auto" onclick="autoDetect()">⚡ Auto</button>
       <button class="btn-validate" onclick="validate()">✓ Validate</button>
       <button class="btn-clear" onclick="clearForm()">Clear</button>
       <span id="form-hint" style="font-size:12px;color:var(--text3);"></span>
     </div>
+  </div>
+
+  <!-- AUTO CHART -->
+  <div class="auto-chart-wrap" id="auto-chart-wrap" style="display:none;">
+    <div class="auto-chart-title" id="auto-chart-title">Wave Chart</div>
+    <canvas id="auto-chart"></canvas>
   </div>
 
   <!-- RESULT -->
@@ -164,6 +177,7 @@ select.form-input option{background:var(--bg2);}
 </div>
 
 <script src="nav.js"></script>
+<script src="api-client.js"></script>
 <script>
 const LS_KEY = 'klaud_ew_setups';
 let waveType = 'impulse';
@@ -414,6 +428,196 @@ function deleteSetup(id) {
   localStorage.setItem(LS_KEY, JSON.stringify(all));
   renderList();
 }
+
+// ─── Auto-detect wave จาก candles จริง (zigzag — port จาก elliott.html) ───
+let autoCandles = [], autoWave = [];
+
+function azThreshold(cs){
+  if (cs.length < 2) return 3;
+  let tr = 0;
+  for (let i=1;i<cs.length;i++){
+    const c=cs[i], p=cs[i-1];
+    tr += Math.max(c.high-c.low, Math.abs(c.high-p.close), Math.abs(c.low-p.close));
+  }
+  const atr = tr/(cs.length-1);
+  const price = cs[cs.length-1].close || 1;
+  const pct = (atr/price)*100*3;
+  return Math.min(8, Math.max(1.2, +pct.toFixed(1)));
+}
+
+function azZigzag(cs, pct){
+  if (cs.length < 3) return cs.map((c,i)=>({index:i, price:c.close}));
+  const th = pct/100;
+  const piv = [{ index:0, price:cs[0].close }];
+  let trend = 0, extIdx = 0, extPx = cs[0].close;
+  for (let i=1;i<cs.length;i++){
+    const hi = cs[i].high, lo = cs[i].low;
+    if (trend <= 0 && hi >= extPx*(1+th)){
+      if (trend < 0) piv.push({ index:extIdx, price:extPx });
+      trend = 1; extIdx = i; extPx = hi;
+    } else if (trend >= 0 && lo <= extPx*(1-th)){
+      if (trend > 0) piv.push({ index:extIdx, price:extPx });
+      trend = -1; extIdx = i; extPx = lo;
+    } else if (trend > 0){
+      if (hi > extPx){ extPx = hi; extIdx = i; }
+    } else if (trend < 0){
+      if (lo < extPx){ extPx = lo; extIdx = i; }
+    } else {
+      if (hi > extPx){ extPx = hi; extIdx = i; }
+      else if (lo < extPx){ extPx = lo; extIdx = i; }
+    }
+  }
+  piv.push({ index:extIdx, price:extPx });
+  return piv.length > 2 ? piv.slice(1) : piv;
+}
+
+function azAdaptiveTh(cs, target){
+  let bestPct=azThreshold(cs), bestDiff=Infinity;
+  for (let pct=0.5; pct<=40; pct+=0.25){
+    const n = azZigzag(cs, pct).length;
+    if (n < 6) continue;
+    const d = Math.abs(n-target);
+    if (d < bestDiff){ bestDiff=d; bestPct=+pct.toFixed(2); }
+  }
+  return bestPct;
+}
+
+function azScore(pts, isImp, total){
+  const p = pts.map(x=>x.price);
+  const dir = Math.sign(p[1]-p[0]) || 1;
+  let s = 0;
+  if (isImp){
+    const len=(a,b)=>Math.abs(p[b]-p[a]);
+    const w1=len(0,1), w3=len(2,3), w5=len(4,5);
+    if ((p[2]-p[0])*dir > 0) s += 40;
+    if (!(w3 < w1 && w3 < w5)) s += 40;
+    if ((p[4]-p[1])*dir > 0) s += 40;
+    if (s === 120){ s += 30; if (w3>=w1 && w3>=w5) s += 10; }
+  } else {
+    if ((p[2]-p[0])*dir > 0) s += 40;
+    if ((p[3]-p[1])*dir > 0) s += 40;
+    if (s === 80) s += 30;
+  }
+  let mn=Infinity, mx=0;
+  for (let i=1;i<pts.length;i++){ const d=Math.abs(p[i]-p[i-1]); if(d<mn)mn=d; if(d>mx)mx=d; }
+  s -= Math.max(0, (mn>0?mx/mn:99)-6)*6;
+  if (total) s += (pts[pts.length-1].index-pts[0].index)/total*45;
+  return s;
+}
+
+function azBestWindow(pivots, startLow, count, isImp, total){
+  let best=null, bestScore=-Infinity;
+  for (let s=0; s+count<=pivots.length; s++){
+    if ((pivots[s+1].price > pivots[s].price) !== startLow) continue;
+    const win = pivots.slice(s, s+count);
+    const sc = azScore(win, isImp, total);
+    if (sc > bestScore){ bestScore=sc; best=win; }
+  }
+  return best ? { pts: best, score: bestScore } : { pts: [], score: -Infinity };
+}
+
+async function autoDetect(){
+  const symEl = document.getElementById('inp-sym');
+  const sym = (symEl.value.trim() || 'BTCUSDT').toUpperCase();
+  symEl.value = sym;
+  const tf = document.getElementById('inp-tf').value;
+  const hint = document.getElementById('form-hint');
+  const btn = document.getElementById('btn-auto');
+  btn.disabled = true;
+  hint.textContent = `⏳ กำลังดึงราคา ${sym} (${tf})...`;
+  try {
+    const res = await klaudFetch(`/api/candles/${sym}?interval=${tf}&limit=500`);
+    const cs = await res.json();
+    if (!Array.isArray(cs) || cs.length < 50) throw new Error(cs.error || 'ไม่พบข้อมูล symbol นี้');
+    autoCandles = cs;
+    const isImp = waveType === 'impulse';
+    const need = isImp ? 6 : 4;
+    // ลองหลายระดับความละเอียด zigzag — window ที่ผ่านกฎ Elliott ครบจะได้ score bonus จึงชนะเสมอถ้ามี
+    let win = { pts: [], score: -Infinity }, winPct = 0;
+    for (const target of [7, 9, 11, 13, 16]) {
+      const pct = azAdaptiveTh(cs, target);
+      const piv = azZigzag(cs, pct);
+      if (piv.length < need) continue;
+      for (const startLow of [true, false]) {
+        const w = azBestWindow(piv, startLow, need, isImp, cs.length);
+        if (w.score > win.score) { win = w; winPct = pct; }
+      }
+    }
+    if (!win.pts.length) throw new Error('ไม่พบ swing ชัดเจน — ลองเปลี่ยน Timeframe');
+    setDir(win.pts[1].price > win.pts[0].price ? 'bull' : 'bear');
+    const keys = isImp ? ['p0','w1','w2','w3','w4','w5'] : ['p0','wa','wb','wc'];
+    keys.forEach((k,i) => { document.getElementById('pt-'+k).value = win.pts[i] ? win.pts[i].price : ''; });
+    autoWave = win.pts;
+    drawAutoChart(cs, win.pts, sym, tf);
+    validate();
+    hint.textContent = `⚡ Auto: zigzag ${winPct}% จาก ${cs.length} แท่ง — ปรับตัวเลขเองได้ก่อนบันทึก`;
+  } catch(e) {
+    hint.textContent = '⚠ ' + e.message;
+  }
+  btn.disabled = false;
+}
+
+function drawAutoChart(cs, pts, sym, tf){
+  const wrap = document.getElementById('auto-chart-wrap');
+  wrap.style.display = '';
+  document.getElementById('auto-chart-title').textContent =
+    `${sym} · ${tf} · ${waveType === 'impulse' ? 'Impulse 0-5' : 'Corrective 0-A-B-C'} (auto)`;
+  const canvas = document.getElementById('auto-chart');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const padL = 8, padR = 52, padT = 14, padB = 18;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  let minP = Infinity, maxP = -Infinity;
+  cs.forEach(c => { if (c.low < minP) minP = c.low; if (c.high > maxP) maxP = c.high; });
+  const span = maxP - minP || 1;
+  const x = i => padL + i / (cs.length - 1) * plotW;
+  const y = p => padT + (maxP - p) / span * plotH;
+
+  // close line
+  ctx.beginPath();
+  cs.forEach((c, i) => i === 0 ? ctx.moveTo(x(0), y(c.close)) : ctx.lineTo(x(i), y(c.close)));
+  ctx.strokeStyle = 'rgba(139,148,158,.45)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // price axis (right)
+  ctx.fillStyle = 'rgba(139,148,158,.8)';
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.textAlign = 'left';
+  [maxP, (maxP+minP)/2, minP].forEach(p => ctx.fillText(fmt(p), W - padR + 6, y(p) + 3));
+
+  if (!pts.length) return;
+  const bull = pts[1].price > pts[0].price;
+  const lineCol = bull ? '#3fb950' : '#f85149';
+
+  // wave polyline
+  ctx.beginPath();
+  pts.forEach((p, i) => i === 0 ? ctx.moveTo(x(p.index), y(p.price)) : ctx.lineTo(x(p.index), y(p.price)));
+  ctx.strokeStyle = lineCol;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // points + labels
+  const labels = waveType === 'impulse' ? ['0','1','2','3','4','5'] : ['0','A','B','C'];
+  ctx.textAlign = 'center';
+  pts.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(x(p.index), y(p.price), 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = lineCol;
+    ctx.fill();
+    const isHigh = i === 0 ? pts[1].price < p.price : pts[i-1].price < p.price;
+    ctx.fillStyle = '#e6edf3';
+    ctx.font = '700 12px JetBrains Mono, monospace';
+    ctx.fillText(labels[i], x(p.index), y(p.price) + (isHigh ? -9 : 17));
+  });
+}
+
+window.addEventListener('resize', () => { if (autoCandles.length && autoWave.length) drawAutoChart(autoCandles, autoWave, document.getElementById('inp-sym').value, document.getElementById('inp-tf').value); });
 
 renderWaveInputs();
 buildNav('EW');
