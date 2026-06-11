@@ -86,6 +86,7 @@
 </div>
 
 <script src="nav.js"></script>
+<script src="api-client.js"></script>
 <script>
 const COINS=[
   {s:'STXUSDT',n:'STX',full:'Stacks',color:'#9d8fff',setup:'buy',label:'🟢 BUY',rsi:52.8,ema20:0.1778,bbU:0.1826,bbL:0.1712,sup:0.1712,tp:0.1826,sl:0.169,adx:32.8,chg:1.46,m1:'▼',m2:'✅',m3:'▲',m1c:'#f85149',m2c:'#3fb950',m3c:'#3fb950',ana:'Candle 90% RSI>50 EMA20 Support'},
@@ -190,13 +191,13 @@ async function scanAll() {
   // 1) ดึงราคาทั้ง 20 ครั้งเดียว (Binance รองรับ batch)
   try {
     const syms = COINS.map(c=>c.s).join(',');
-    const priceRes = await fetch(`${API}/prices?symbols=${syms}`).then(r=>r.json()).catch(()=>[]);
+    const priceRes = await klaudFetch(`${API}/prices?symbols=${syms}`).then(r=>r.json()).catch(()=>[]);
     priceRes.forEach(d=>{ liveData[d.symbol] = {...(liveData[d.symbol]||{}), p:+d.lastPrice, chg:+d.priceChangePercent}; });
   } catch(e) {}
 
   // 2) ดึง analysis ทีละ 5 กัน rate limit
   const anaRes = await fetchBatch(COINS, c =>
-    fetch(`${API}/analysis/${c.s}?tf=1h`).then(r=>r.json()).catch(()=>null)
+    klaudFetch(`${API}/analysis/${c.s}?tf=1h`).then(r=>r.json()).catch(()=>null)
   , 5, 300);
 
   COINS.forEach((c,i)=>{

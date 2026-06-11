@@ -157,6 +157,7 @@
 </div>
 
 <script src="nav.js"></script>
+<script src="api-client.js"></script>
 <script>
 const API = 'http://localhost:3000/api';
 const COLORS = { bull:'#3fb950', bear:'#f85149' };
@@ -216,7 +217,7 @@ async function loadCandles(){
   const loading = document.getElementById('ew-loading');
   loading.style.display = 'flex'; loading.textContent = 'กำลังโหลด candles…';
   try {
-    const res = await fetch(`${API}/candles/${sym}?interval=${tf}&limit=1000`);
+    const res = await klaudFetch(`${API}/candles/${sym}?interval=${tf}&limit=1000`);
     const data = await res.json();
     if (!Array.isArray(data) || !data.length) throw new Error(data.error || 'ไม่มีข้อมูล');
     allCandles = data;
