@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shock Retest Scanner — KLAUD</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ใช้ตัวแปรจาก _shared.css ถ้ามี ไม่มีก็ fallback เป็นโทน GitHub-dark เดิมของ KLAUD */
+:root{
+  --sr-bg: var(--bg, #0d1117);
+  --sr-panel: var(--panel, #161b22);
+  --sr-border: var(--border, #30363d);
+  --sr-text: var(--text, #e6edf3);
+  --sr-muted: var(--muted, #8b949e);
+  --sr-green: var(--green, #3fb950);
+  --sr-red: var(--red, #f85149);
+  --sr-yellow: var(--yellow, #d29922);
+  --sr-blue: var(--blue, #58a6ff);
+}
+body{background:var(--sr-bg);color:var(--sr-text);font-family:'Inter',system-ui,sans-serif;margin:0}
+.sr-wrap{max-width:1100px;margin:0 auto;padding:16px}
+.sr-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:14px 0}
+.sr-head h1{font-size:18px;margin:0;font-weight:600}
+.sr-head .sub{color:var(--sr-muted);font-size:12px}
+.sr-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sr-controls select,.sr-controls input,.sr-controls button{
+  background:var(--sr-panel);color:var(--sr-text);border:1px solid var(--sr-border);
+  border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit}
+.sr-controls button{cursor:pointer}
+.sr-controls button.primary{border-color:var(--sr-green);color:var(--sr-green)}
+table.sr{width:100%;border-collapse:collapse;font-size:13px;background:var(--sr-panel);
+  border:1px solid var(--sr-border);border-radius:8px;overflow:hidden}
+table.sr th{background:#1c2230;color:var(--sr-muted);font-weight:600;text-align:left;
+  padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+table.sr td{padding:9px 10px;border-top:1px solid var(--sr-border);
+  font-family:'JetBrains Mono',monospace;font-size:12.5px;white-space:nowrap}
+td.sym{font-weight:700;font-family:'Inter',sans-serif}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;
+  font-family:'Inter',sans-serif}
+.b-none{background:#21262d;color:var(--sr-muted)}
+.b-wait{background:rgba(210,153,34,.15);color:var(--sr-yellow)}
+.b-active{background:rgba(63,185,80,.18);color:var(--sr-green);animation:pulse 1.2s infinite}
+.b-invalid{background:rgba(248,81,73,.12);color:var(--sr-red)}
+.b-filtered{background:#21262d;color:var(--sr-muted);text-decoration:line-through}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.dir-long{color:var(--sr-green)} .dir-short{color:var(--sr-red)}
+.posbar{display:inline-block;width:60px;height:6px;background:#21262d;border-radius:3px;
+  position:relative;vertical-align:middle;margin-right:6px}
+.posbar i{position:absolute;top:-2px;width:3px;height:10px;background:var(--sr-blue);border-radius:1px}
+.sr-foot{color:var(--sr-muted);font-size:11.5px;margin-top:10px;line-height:1.6}
+.sizer{background:var(--sr-panel);border:1px solid var(--sr-border);border-radius:8px;
+  padding:10px 14px;margin:14px 0;display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:13px}
+.sizer input{width:90px;background:var(--sr-bg);color:var(--sr-text);
+  border:1px solid var(--sr-border);border-radius:5px;padding:4px 8px;font-family:'JetBrains Mono',monospace}
+.flash{animation:rowflash 1s 3}
+@keyframes rowflash{50%{background:rgba(63,185,80,.18)}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a href="index.html" class="topbar-logo"><div class="logo-icon">K</div><div class="logo-text">KL<span>AUD</span></div></a>
+  <nav class="topbar-nav" id="topbar-nav"></nav>
+  <div class="topbar-right">
+    <div class="badge-live"><div class="dot"></div>Live · Binance</div>
+  </div>
+</header>
+<div class="market-bar" id="market-bar" style="position:fixed;top:52px;left:0;right:0;z-index:99;"></div>
+<div class="sr-wrap" style="margin-top:104px;">
+  <div class="sr-head">
+    <div>
+      <h1>⚡ Shock Retest Scanner</h1>
+      <div class="sub">3 Swings + Shock Retest · กรองฝั่งแข็งสวิงใหญ่ 1D · พารามิเตอร์ชุดผ่าน out-of-sample 2020–2025 (+0.29R/ไม้)</div>
+    </div>
+    <div class="sr-controls">
+      <select id="pollSel">
+        <option value="60">รีเฟรช 1 นาที</option>
+        <option value="300" selected>รีเฟรช 5 นาที</option>
+        <option value="900">รีเฟรช 15 นาที</option>
+      </select>
+      <button id="notifBtn">🔔 เปิดแจ้งเตือน</button>
+      <button id="scanBtn" class="primary">สแกนเลย</button>
+    </div>
+  </div>
+
+  <div class="sizer">
+    <b>Position Size:</b>
+    พอร์ต $ <input id="acct" type="number" value="10000">
+    Risk/ไม้ % <input id="riskPct" type="number" value="1" step="0.25">
+    <span class="sub" style="color:var(--sr-muted)">→ ขนาดไม้คำนวณให้ในตารางตามระยะ SL ของแต่ละสัญญาณ</span>
+  </div>
+
+  <table class="sr">
+    <thead><tr>
+      <th>เหรียญ</th><th>สถานะ</th><th>ฝั่ง</th><th>สวิงใหญ่ 1D</th>
+      <th>โซนเข้า (fib 0.5)</th><th>Stop Loss</th><th>TP1 (100%A)</th><th>TP2 (161.8%)</th>
+      <th>R:R@TP1</th><th>Size</th><th>อัปเดต</th>
+    </tr></thead>
+    <tbody id="rows"><tr><td colspan="11" style="color:var(--sr-muted)">กด "สแกนเลย" เพื่อเริ่ม…</td></tr></tbody>
+  </table>
+
+  <div class="sr-foot">
+    กติกา: บริบทเทรนด์เดิม (LH/LL หรือ HL/HH สองชุด) → แท่ง Shock ปิดทะลุโครงสร้าง body ≥ 1.0×ATR14 →
+    รอ Retest โซน fib 33.3–61.8% ของขา A (จุดเข้าอ้างอิง 50%) ภายใน 72 แท่ง 1h ·
+    ตัวกรอง: Long เฉพาะราคาอยู่ครึ่งบนของสวิงใหญ่ 1D / Short เฉพาะครึ่งล่าง ·
+    SL = จุด invalidation (ต้น ขา A) · ออกแบบ Partial: ครึ่งที่ TP1 เลื่อน SL ไปทุน ที่เหลือ TP2 ·
+    <b style="color:var(--sr-yellow)">แจ้งเตือนเมื่อราคาเข้าโซนเท่านั้น — ตัดสินใจเข้าไม้เองทุกครั้ง</b>
+  </div>
+</div>
+
+<script src="nav.js"></script>
+<script>
+if (typeof buildNav === 'function') buildNav('⚡ Shock');
+if (typeof fetchMarketBar === 'function') fetchMarketBar();
+
+const SYMBOLS = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT'];
+const P = { k1h:4, kD:6, atrMult:1.0, fibLo:0.333, fibHi:0.618, entryFib:0.5,
+            maxWait:72, posCut:0.5 };
+let lastStatus = {};   // กันแจ้งเตือนซ้ำ: เตือนเฉพาะตอนเปลี่ยนเป็น ACTIVE
+let timer = null;
+
+async function candles(sym, interval, limit){
+  const r = await fetch(`/api/candles/${sym}?interval=${interval}&limit=${limit}`);
+  if(!r.ok) throw new Error(`${sym} ${interval}: HTTP ${r.status}`);
+  const j = await r.json();   // server คืน object: {time(วินาที), open, high, low, close, volume}
+  return j.map(k => ({t:k.time*1000, o:+k.open, h:+k.high, l:+k.low, c:+k.close}));
+}
+
+function atr14(cs){
+  const out = new Array(cs.length).fill(NaN);
+  let trs = [];
+  for(let i=1;i<cs.length;i++){
+    const tr = Math.max(cs[i].h-cs[i].l, Math.abs(cs[i].h-cs[i-1].c), Math.abs(cs[i].l-cs[i-1].c));
+    trs.push(tr);
+    if(trs.length>14) trs.shift();
+    if(trs.length===14) out[i] = trs.reduce((a,b)=>a+b,0)/14;
+  }
+  return out;
+}
+
+// pivot ยืนยันแล้วเท่านั้น (สูง/ต่ำกว่ารอบข้าง k แท่ง และผ่านไปแล้ว k แท่ง)
+function pivots(cs,k){
+  const out=[];
+  for(let i=k;i<cs.length-k;i++){
+    let isH=true,isL=true;
+    for(let j=i-k;j<=i+k;j++){
+      if(cs[j].h>cs[i].h) isH=false;
+      if(cs[j].l<cs[i].l) isL=false;
+    }
+    if(isH) out.push({i, type:'H', px:cs[i].h, conf:i+k});
+    if(isL) out.push({i, type:'L', px:cs[i].l, conf:i+k});
+  }
+  return out;
+}
+
+// ตำแหน่งราคาในสวิงใหญ่ 1D (0=ก้น 1=ยอด) จาก pivot ใหญ่ล่าสุดที่ยืนยันแล้ว
+function bigSwingPos(d1){
+  const pv = pivots(d1, P.kD).filter(p=>p.conf <= d1.length-1);
+  const hs = pv.filter(p=>p.type==='H'), ls = pv.filter(p=>p.type==='L');
+  if(!hs.length || !ls.length) return null;
+  const hi = hs[hs.length-1].px, lo = ls[ls.length-1].px;
+  if(hi<=lo) return null;
+  const c = d1[d1.length-1].c;
+  return Math.max(0, Math.min(1, (c-lo)/(hi-lo)));
+}
+
+// หา setup ล่าสุดที่ยังมีชีวิตอยู่ในข้อมูล 1h (ตรรกะเดียวกับ backtest)
+function findSetup(cs, dir){
+  const sgn = dir==='long' ? 1 : -1;
+  const atr = atr14(cs);
+  const pv = pivots(cs, P.k1h);
+  let live = null;
+  for(let i=120;i<cs.length;i++){
+    const conf = pv.filter(p=>p.conf<=i);
+    if(conf.length<5) continue;
+    const hs = conf.filter(p=>p.type==='H').slice(-3);
+    const ls = conf.filter(p=>p.type==='L').slice(-3);
+    let ctx=false, lvl=null, origin=null;
+    if(dir==='long'){
+      ctx = hs.length>=2 && hs[hs.length-1].px<hs[hs.length-2].px
+         && ls.length>=2 && ls[ls.length-1].px<ls[ls.length-2].px;
+      lvl = hs.length ? hs[hs.length-1].px : null;
+      origin = ls.length ? ls[ls.length-1] : null;
+    }else{
+      ctx = ls.length>=2 && ls[ls.length-1].px>ls[ls.length-2].px
+         && hs.length>=2 && hs[hs.length-1].px>hs[hs.length-2].px;
+      lvl = ls.length ? ls[ls.length-1].px : null;
+      origin = hs.length ? hs[hs.length-1] : null;
+    }
+    if(!ctx || lvl===null || !origin || isNaN(atr[i])) continue;
+    const body = Math.abs(cs[i].c - cs[i].o);
+    const shock = sgn*(cs[i].c-lvl)>0 && sgn*(cs[i].c-cs[i].o)>0 && body>=P.atrMult*atr[i];
+    if(!shock) continue;
+
+    // ปลายขา A: ปล่อย impulse วิ่งจนเริ่มย่อ (หรือถึงแท่งปัจจุบัน)
+    let ext=i, j=i+1;
+    while(j<cs.length && sgn*(cs[j].c-cs[j-1].c)>0){ ext=j; j++; }
+    const aEnd = dir==='long' ? cs[ext].h : cs[ext].l;
+    const aLen = sgn*(aEnd-origin.px);
+    if(aLen<=0) continue;
+
+    const entry = aEnd - sgn*aLen*P.entryFib;
+    const zoneNear = aEnd - sgn*aLen*P.fibLo;
+    const stop = origin.px;
+    const tp1 = entry + sgn*aLen, tp2 = entry + sgn*aLen*1.618;
+
+    // ประเมินสถานะของ setup นี้จากแท่งหลัง ext จนถึงปัจจุบัน
+    let status='WAIT', entered=false;
+    for(let m=ext+1;m<cs.length;m++){
+      const dead = dir==='long' ? cs[m].l<stop : cs[m].h>stop;
+      const touch = dir==='long' ? cs[m].l<=entry : cs[m].h>=entry;
+      if(dead){ status='INVALID'; break; }
+      if(touch){ status='ACTIVE'; entered=true; break; }
+      if(m-ext>P.maxWait){ status='EXPIRED'; break; }
+    }
+    if(status==='WAIT' && cs.length-1-ext>P.maxWait) status='EXPIRED';
+    if(status==='INVALID'||status==='EXPIRED'){ continue; }
+    live = {dir, status, entry, zoneNear, stop, tp1, tp2,
+            rr: Math.abs((tp1-entry)/(entry-stop)), age: cs.length-1-ext};
+  }
+  return live;
+}
+
+function fmt(x){ return x>=1000 ? x.toLocaleString('en-US',{maximumFractionDigits:1})
+                                : x.toPrecision(5); }
+
+async function scan(){
+  const tb=document.getElementById('rows'); tb.innerHTML='';
+  const acct=+document.getElementById('acct').value||0;
+  const rp=(+document.getElementById('riskPct').value||0)/100;
+  for(const sym of SYMBOLS){
+    const tr=document.createElement('tr');
+    try{
+      const [h1,d1]=await Promise.all([candles(sym,'1h',1000), candles(sym,'1d',400)]);
+      const pos=bigSwingPos(d1);
+      const allowed = pos===null ? null : (pos>P.posCut ? 'long' : 'short');
+      let s = allowed ? findSetup(h1, allowed) : null;
+      let blocked=null;
+      if(!s && allowed){  // มี setup ฝั่งตรงข้ามไหม (โชว์ว่าโดนกรอง)
+        const other=findSetup(h1, allowed==='long'?'short':'long');
+        if(other) blocked=other;
+      }
+      const posPct = pos===null?'—':(pos*100).toFixed(0)+'%';
+      const bar = pos===null?'':`<span class="posbar"><i style="left:${(pos*57).toFixed(0)}px"></i></span>`;
+      const now=new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+      if(s){
+        const size = acct&&rp ? (acct*rp/Math.abs(s.entry-s.stop)).toFixed(4) : '—';
+        const badge = s.status==='ACTIVE'
+          ? '<span class="badge b-active">🎯 ราคาเข้าโซน</span>'
+          : '<span class="badge b-wait">⏳ รอ retest</span>';
+        tr.innerHTML=`<td class="sym">${sym.replace('USDT','')}</td><td>${badge}</td>
+          <td class="dir-${s.dir}">${s.dir.toUpperCase()}</td><td>${bar}${posPct}</td>
+          <td>${fmt(s.zoneNear)} → ${fmt(s.entry)}</td><td>${fmt(s.stop)}</td>
+          <td>${fmt(s.tp1)}</td><td>${fmt(s.tp2)}</td><td>${s.rr.toFixed(2)}</td>
+          <td>${size}</td><td>${now}</td>`;
+        if(s.status==='ACTIVE' && lastStatus[sym]!=='ACTIVE'){
+          tr.classList.add('flash'); alert_(sym, s);
+        }
+        lastStatus[sym]=s.status;
+      }else{
+        const note = blocked
+          ? `<span class="badge b-filtered">มี setup ${blocked.dir} แต่โดนกรอง (ผิดฝั่งสวิงใหญ่)</span>`
+          : '<span class="badge b-none">ไม่มี setup</span>';
+        tr.innerHTML=`<td class="sym">${sym.replace('USDT','')}</td><td>${note}</td>
+          <td>—</td><td>${bar}${posPct}</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>${now}</td>`;
+        lastStatus[sym]=null;
+      }
+    }catch(e){
+      tr.innerHTML=`<td class="sym">${sym}</td><td colspan="10" style="color:var(--sr-red)">โหลดข้อมูลไม่ได้: ${e.message}</td>`;
+    }
+    tb.appendChild(tr);
+  }
+}
+
+function alert_(sym, s){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value=880; g.gain.value=0.08;
+    o.start(); o.stop(ctx.currentTime+0.35);
+  }catch(e){}
+  if(Notification && Notification.permission==='granted'){
+    new Notification(`⚡ ${sym}: ราคาเข้าโซน Shock Retest`,{
+      body:`${s.dir.toUpperCase()} โซน ${fmt(s.entry)} | SL ${fmt(s.stop)} | TP1 ${fmt(s.tp1)} | RR ${s.rr.toFixed(2)}`,
+    });
+  }
+}
+
+document.getElementById('scanBtn').onclick=scan;
+document.getElementById('notifBtn').onclick=()=>Notification.requestPermission()
+  .then(p=>{document.getElementById('notifBtn').textContent = p==='granted'?'🔔 แจ้งเตือนเปิดอยู่':'🔕 ไม่ได้รับอนุญาต';});
+document.getElementById('pollSel').onchange=startPoll;
+function startPoll(){
+  if(timer) clearInterval(timer);
+  timer=setInterval(scan, +document.getElementById('pollSel').value*1000);
+}
+startPoll();
+</script>
+</body>
+</html>

@@ -5,6 +5,7 @@ const NAV_PAGES = [
   { label:'Watchlist', href:'watchlist.html' },
   { label:'Elliott',   href:'elliott.html' },
   { label:'EW',        href:'ew.html' },
+  { label:'⚡ Shock',  href:'shockretest.html' },
   { label:'Stats',     href:'stats.html' },
   { label:'Log',       href:'log.html' },
   { label:'Strategy',  href:'strategy.html' },
