@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>KLAUD — EW Validator</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+body{padding-top:104px;}
+.page{max-width:1100px;margin:0 auto;padding:24px 16px;}
+.page-title{font-size:20px;font-weight:800;margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--text2);margin-bottom:24px;}
+
+/* FORM */
+.ew-form{background:var(--bg1);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;}
+.form-section-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;}
+.form-row-top{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+.form-input{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:12px;color:var(--text1);outline:none;font-family:'JetBrains Mono',monospace;width:100%;}
+.form-input:focus{border-color:var(--blue);}
+select.form-input option{background:var(--bg2);}
+.sym-inp{width:120px;text-transform:uppercase;}
+.wave-pts{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px;}
+.wave-pts.corrective{grid-template-columns:repeat(4,1fr);}
+.pt-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;}
+.pt-label{font-size:10px;font-weight:700;margin-bottom:6px;}
+.pt-label.p0{color:var(--text2);}
+.pt-label.w1{color:var(--green);}
+.pt-label.w2{color:var(--red);}
+.pt-label.w3{color:var(--green);}
+.pt-label.w4{color:var(--red);}
+.pt-label.w5{color:var(--blue);}
+.pt-label.wa{color:var(--red);}
+.pt-label.wb{color:var(--green);}
+.pt-label.wc{color:var(--red);}
+.pt-sublabel{font-size:9px;color:var(--text3);margin-bottom:4px;}
+.form-actions{display:flex;gap:10px;align-items:center;}
+.btn-validate{background:var(--blue);color:#fff;border:none;border-radius:7px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-validate:hover{opacity:.85;}
+.btn-auto{background:#f59e0b;color:#fff;border:none;border-radius:7px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-auto:hover{opacity:.85;}
+.btn-auto:disabled{opacity:.5;cursor:wait;}
+.auto-chart-wrap{background:var(--bg1);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:24px;}
+.auto-chart-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;}
+#auto-chart{width:100%;height:280px;display:block;}
+.btn-clear{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:9px 16px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;}
+.btn-clear:hover{color:var(--text1);}
+.type-toggle{display:flex;gap:4px;}
+.type-btn{padding:7px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:all .15s;}
+.type-btn.active{background:var(--blue-dim);border-color:var(--blue);color:var(--blue);}
+.dir-btn{padding:7px 14px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:all .15s;}
+.dir-btn.bull.active{background:#3fb95018;border-color:var(--green);color:var(--green);}
+.dir-btn.bear.active{background:#f8514918;border-color:var(--red);color:var(--red);}
+
+/* RESULT */
+.result-box{border-radius:10px;padding:16px;margin-bottom:24px;display:none;}
+.result-box.pass{background:#3fb95010;border:1px solid #3fb95040;}
+.result-box.fail{background:#f8514910;border:1px solid #f8514940;}
+.result-title{font-size:14px;font-weight:800;margin-bottom:10px;}
+.result-rules{display:flex;flex-direction:column;gap:6px;}
+.rule-row{display:flex;align-items:center;gap:8px;font-size:12px;}
+.rule-icon{font-size:14px;flex-shrink:0;}
+.rule-name{color:var(--text2);width:160px;flex-shrink:0;}
+.rule-detail{color:var(--text1);}
+.result-trade{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.rt-box{text-align:center;}
+.rt-label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;margin-bottom:4px;}
+.rt-val{font-size:16px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.save-btn{background:var(--green);color:#fff;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;margin-top:12px;}
+.save-btn:hover{opacity:.85;}
+
+/* SETUP LIST */
+.setups-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.setups-title{font-size:15px;font-weight:700;}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;}
+.f-btn{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .15s;}
+.f-btn.active{border-color:var(--blue);background:var(--blue-dim);color:var(--blue);}
+.setups-table-wrap{background:var(--bg1);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.empty-state{text-align:center;padding:40px;color:var(--text3);}
+.outcome-sel{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:11px;color:var(--text1);outline:none;cursor:pointer;}
+.del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:4px;}
+.del-btn:hover{color:var(--red);}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="index.html" class="topbar-logo"><div class="logo-icon">K</div><div class="logo-text">KL<span>AUD</span></div></a>
+  <nav class="topbar-nav" id="topbar-nav"></nav>
+  <div class="topbar-right"><div class="badge-live"><div class="dot"></div>Live</div></div>
+</header>
+<div class="market-bar" id="market-bar" style="position:fixed;top:52px;left:0;right:0;z-index:99;"></div>
+
+<div class="page">
+  <div class="page-title">〰 Elliott Wave Validator</div>
+  <div class="page-sub">ป้อนจุดราคา → ตรวจกฎ Elliott Wave → บันทึก setup</div>
+
+  <!-- FORM -->
+  <div class="ew-form">
+    <div class="form-section-title">Setup Input</div>
+    <div class="form-row-top">
+      <div class="form-group">
+        <div class="form-label">Symbol</div>
+        <input id="inp-sym" class="form-input sym-inp" placeholder="BTCUSDT" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Wave Type</div>
+        <div class="type-toggle">
+          <button class="type-btn active" id="btn-impulse" onclick="setType('impulse')">Impulse (1-2-3-4-5)</button>
+          <button class="type-btn" id="btn-corrective" onclick="setType('corrective')">Corrective (A-B-C)</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Direction</div>
+        <div class="type-toggle">
+          <button class="dir-btn bull active" id="btn-bull" onclick="setDir('bull')">▲ Bull</button>
+          <button class="dir-btn bear" id="btn-bear" onclick="setDir('bear')">▼ Bear</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Timeframe</div>
+        <select id="inp-tf" class="form-input" style="width:90px;">
+          <option>15m</option><option>1h</option><option selected>4h</option>
+          <option>1d</option><option>1w</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-section-title" style="margin-top:4px;">Wave Price Points</div>
+    <div class="wave-pts" id="wave-pts-grid"></div>
+
+    <div class="form-actions">
+      <button class="btn-auto" id="btn-auto" onclick="autoDetect()">⚡ Auto</button>
+      <button class="btn-validate" onclick="validate()">✓ Validate</button>
+      <button class="btn-clear" onclick="clearForm()">Clear</button>
+      <span id="form-hint" style="font-size:12px;color:var(--text3);"></span>
+    </div>
+  </div>
+
+  <!-- AUTO CHART -->
+  <div class="auto-chart-wrap" id="auto-chart-wrap" style="display:none;">
+    <div class="auto-chart-title" id="auto-chart-title">Wave Chart</div>
+    <canvas id="auto-chart"></canvas>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result-box" id="result-box">
+    <div class="result-title" id="result-title"></div>
+    <div class="result-rules" id="result-rules"></div>
+    <div class="result-trade" id="result-trade"></div>
+    <button class="save-btn" id="save-btn" onclick="saveSetup()" style="display:none;">+ บันทึก Setup</button>
+  </div>
+
+  <!-- LIST -->
+  <div class="setups-header">
+    <div class="setups-title">Saved Setups</div>
+    <div class="filter-row">
+      <button class="f-btn active" onclick="setFilter('all',this)">All</button>
+      <button class="f-btn" onclick="setFilter('impulse',this)">Impulse</button>
+      <button class="f-btn" onclick="setFilter('corrective',this)">Corrective</button>
+      <button class="f-btn" onclick="setFilter('open',this)">Open</button>
+      <button class="f-btn" onclick="setFilter('win',this)">Win</button>
+      <button class="f-btn" onclick="setFilter('loss',this)">Loss</button>
+    </div>
+  </div>
+  <div class="setups-table-wrap">
+    <table class="table" id="setups-tbl">
+      <thead><tr>
+        <th>Symbol</th><th>Type</th><th>Dir</th><th>TF</th>
+        <th>Entry</th><th>TP</th><th>SL</th><th>RR</th>
+        <th>Outcome</th><th>Exit</th><th>PnL%</th><th>Date</th><th></th>
+      </tr></thead>
+      <tbody id="setups-body"></tbody>
+    </table>
+    <div class="empty-state" id="empty-state">ยังไม่มี setup — กรอกราคาด้านบนแล้วกด Validate</div>
+  </div>
+</div>
+
+<script src="nav.js"></script>
+<script src="api-client.js"></script>
+<script>
+const LS_KEY = 'klaud_ew_setups';
+let waveType = 'impulse';
+let direction = 'bull';
+let currentResult = null;
+
+function setType(t) {
+  waveType = t;
+  document.getElementById('btn-impulse').classList.toggle('active', t==='impulse');
+  document.getElementById('btn-corrective').classList.toggle('active', t==='corrective');
+  renderWaveInputs();
+  clearResult();
+}
+function setDir(d) {
+  direction = d;
+  document.getElementById('btn-bull').classList.toggle('active', d==='bull');
+  document.getElementById('btn-bear').classList.toggle('active', d==='bear');
+  clearResult();
+}
+
+function renderWaveInputs() {
+  const grid = document.getElementById('wave-pts-grid');
+  grid.className = 'wave-pts' + (waveType==='corrective' ? ' corrective' : '');
+  const labels = waveType === 'impulse'
+    ? [{k:'p0',l:'P0',sub:'Origin/Start',cls:'p0'},{k:'w1',l:'W1',sub:'End of Wave 1',cls:'w1'},{k:'w2',l:'W2',sub:'End of Wave 2',cls:'w2'},{k:'w3',l:'W3',sub:'End of Wave 3',cls:'w3'},{k:'w4',l:'W4',sub:'End of Wave 4',cls:'w4'},{k:'w5',l:'W5',sub:'End of Wave 5',cls:'w5'}]
+    : [{k:'p0',l:'P0',sub:'Origin/Start',cls:'p0'},{k:'wa',l:'WA',sub:'End of Wave A',cls:'wa'},{k:'wb',l:'WB',sub:'End of Wave B',cls:'wb'},{k:'wc',l:'WC',sub:'End of Wave C',cls:'wc'}];
+  grid.innerHTML = labels.map(({k,l,sub,cls}) => `
+    <div class="pt-box">
+      <div class="pt-label ${cls}">${l}</div>
+      <div class="pt-sublabel">${sub}</div>
+      <input id="pt-${k}" class="form-input" type="number" step="any" placeholder="0.00">
+    </div>`).join('');
+}
+
+function getPoints() {
+  const keys = waveType==='impulse' ? ['p0','w1','w2','w3','w4','w5'] : ['p0','wa','wb','wc'];
+  return keys.map(k => parseFloat(document.getElementById('pt-'+k)?.value)||0);
+}
+
+function impulseRules(pts, bull) {
+  const [p0,w1,w2,w3,w4,w5] = pts;
+  const len1 = Math.abs(w1-p0), len3 = Math.abs(w3-w2), len5 = Math.abs(w5-w4);
+  const r1ok = bull ? w2 > p0 : w2 < p0;
+  const r2ok = len3 >= Math.min(len1, len5);
+  const r3ok = bull ? w4 > w1 : w4 < w1;
+  return [
+    { name:'Rule 1 — W2 no overlap', ok: r1ok, detail: bull
+      ? `W2(${w2}) must be above P0(${p0})`
+      : `W2(${w2}) must be below P0(${p0})` },
+    { name:'Rule 2 — W3 not shortest', ok: r2ok, detail:
+      `W1=${fmt(len1)}  W3=${fmt(len3)}  W5=${fmt(len5)}` },
+    { name:'Rule 3 — W4 no overlap W1', ok: r3ok, detail: bull
+      ? `W4(${w4}) must be above W1(${w1})`
+      : `W4(${w4}) must be below W1(${w1})` },
+  ];
+}
+
+function correctiveRules(pts, bull) {
+  const [p0,wa,wb,wc] = pts;
+  const lenA = Math.abs(wa-p0), lenC = Math.abs(wc-wb);
+  const r1ok = bull ? wb < wa : wb > wa;
+  const r2ok = lenC > 0;
+  return [
+    { name:'Rule 1 — WB partial retrace', ok: r1ok, detail: bull
+      ? `WB(${wb}) must be below WA(${wa})`
+      : `WB(${wb}) must be above WA(${wa})` },
+    { name:'Rule 2 — WC extends from WB', ok: r2ok, detail:
+      `WC ext = ${lenA > 0 ? fmt(lenC/lenA*100) : '–'}% of WA` },
+  ];
+}
+
+function fmt(n){ return isNaN(n) ? '–' : n.toLocaleString('en',{maximumFractionDigits:2}); }
+
+function tradeSetup(pts, bull) {
+  if(waveType === 'impulse') {
+    const [,w1,w2,w3,w4,w5] = pts;
+    const entry = w4;
+    const sl = bull ? w1 * 0.995 : w1 * 1.005;
+    const tp = w5 || (bull ? entry + Math.abs(w3-w2) : entry - Math.abs(w3-w2));
+    const risk = Math.abs(entry - sl);
+    const reward = Math.abs(tp - entry);
+    return { entry, sl, tp, rr: risk > 0 ? reward/risk : 0 };
+  } else {
+    const [p0,wa,wb,wc] = pts;
+    const entry = wb;
+    const sl = bull ? wa * 0.995 : wa * 1.005;
+    const risk = Math.abs(entry - sl);
+    const tp = bull ? wb + Math.abs(wa-p0) : wb - Math.abs(wa-p0);
+    const reward = Math.abs(tp - entry);
+    return { entry, sl, tp, rr: risk > 0 ? reward/risk : 0 };
+  }
+}
+
+function validate() {
+  const sym = document.getElementById('inp-sym').value.trim().toUpperCase();
+  if (!sym) { document.getElementById('form-hint').textContent = 'กรุณาใส่ Symbol'; return; }
+  document.getElementById('form-hint').textContent = '';
+  const pts = getPoints();
+  if (pts.some(p => !p)) { document.getElementById('form-hint').textContent = 'กรุณากรอกราคาให้ครบทุกจุด'; return; }
+
+  const bull = direction === 'bull';
+  const rules = waveType === 'impulse' ? impulseRules(pts, bull) : correctiveRules(pts, bull);
+  const allPass = rules.every(r => r.ok);
+  const trade = tradeSetup(pts, bull);
+
+  const box = document.getElementById('result-box');
+  box.className = 'result-box ' + (allPass ? 'pass' : 'fail');
+  box.style.display = '';
+
+  document.getElementById('result-title').innerHTML =
+    (allPass ? '✅' : '❌') + ' ' + sym + ' — ' +
+    (waveType === 'impulse' ? 'Impulse Wave' : 'Corrective ABC') + ' ' +
+    (bull ? '▲ Bull' : '▼ Bear') + ' — ' +
+    (allPass ? 'Valid Elliott Wave' : 'Rule Violation');
+
+  document.getElementById('result-rules').innerHTML = rules.map(r =>
+    `<div class="rule-row">
+      <span class="rule-icon">${r.ok ? '✅' : '❌'}</span>
+      <span class="rule-name">${r.name}</span>
+      <span class="rule-detail">${r.detail}</span>
+    </div>`).join('');
+
+  document.getElementById('result-trade').innerHTML = `
+    <div class="rt-box"><div class="rt-label">Entry</div><div class="rt-val" style="color:var(--blue)">${fmt(trade.entry)}</div></div>
+    <div class="rt-box"><div class="rt-label">TP</div><div class="rt-val" style="color:var(--green)">${fmt(trade.tp)}</div></div>
+    <div class="rt-box"><div class="rt-label">SL</div><div class="rt-val" style="color:var(--red)">${fmt(trade.sl)}</div></div>`;
+
+  const saveBtn = document.getElementById('save-btn');
+  saveBtn.style.display = '';
+
+  currentResult = {
+    id: Date.now().toString(),
+    sym, type: waveType, direction,
+    tf: document.getElementById('inp-tf').value,
+    points: pts, valid: allPass,
+    entry: trade.entry, tp: trade.tp, sl: trade.sl, rr: +trade.rr.toFixed(2),
+    status: 'open', exit: null, pnl: null,
+    date: new Date().toISOString()
+  };
+}
+
+function clearResult() {
+  document.getElementById('result-box').style.display = 'none';
+  currentResult = null;
+}
+
+function clearForm() {
+  document.getElementById('inp-sym').value = '';
+  document.querySelectorAll('.wave-pts input').forEach(i => i.value = '');
+  clearResult();
+  document.getElementById('form-hint').textContent = '';
+}
+
+function saveSetup() {
+  if (!currentResult) return;
+  const all = loadSetups();
+  all.unshift(currentResult);
+  localStorage.setItem(LS_KEY, JSON.stringify(all));
+  currentResult = null;
+  document.getElementById('save-btn').style.display = 'none';
+  document.getElementById('save-btn').textContent = '✓ Saved!';
+  renderList();
+  setTimeout(() => { document.getElementById('save-btn').textContent = '+ บันทึก Setup'; }, 1500);
+  clearForm();
+}
+
+function loadSetups() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; }
+}
+
+let activeFilter = 'all';
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.f-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderList();
+}
+
+function renderList() {
+  const all = loadSetups();
+  const filtered = activeFilter === 'all' ? all : all.filter(s =>
+    activeFilter === 'impulse' ? s.type === 'impulse' :
+    activeFilter === 'corrective' ? s.type === 'corrective' :
+    s.status === activeFilter);
+  const tbody = document.getElementById('setups-body');
+  const empty = document.getElementById('empty-state');
+  if (!filtered.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = filtered.map(s => {
+    const pnlFmt = s.pnl != null ? (s.pnl >= 0 ? '+' : '') + s.pnl.toFixed(2) + '%' : '–';
+    const pnlColor = s.pnl > 0 ? 'var(--green)' : s.pnl < 0 ? 'var(--red)' : 'var(--text2)';
+    const statusColor = s.status==='win' ? 'var(--green)' : s.status==='loss' ? 'var(--red)' : 'var(--text2)';
+    const dirTag = s.direction==='bull' ? '<span style="color:var(--green)">▲</span>' : '<span style="color:var(--red)">▼</span>';
+    const typeTag = s.type==='impulse' ? '1-5' : 'A-C';
+    const dateStr = new Date(s.date).toLocaleDateString('th',{day:'2-digit',month:'short'});
+    return `<tr>
+      <td style="font-weight:700;font-family:'JetBrains Mono',monospace">${s.sym}</td>
+      <td>${typeTag} ${s.valid ? '' : '<span style="color:var(--red);font-size:10px">✗</span>'}</td>
+      <td>${dirTag}</td>
+      <td style="color:var(--text2)">${s.tf}</td>
+      <td style="font-family:'JetBrains Mono',monospace">${fmt(s.entry)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--green)">${fmt(s.tp)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--red)">${fmt(s.sl)}</td>
+      <td style="color:var(--yellow)">${s.rr}R</td>
+      <td><select class="outcome-sel" onchange="updateOutcome('${s.id}',this.value)">
+        <option value="open" ${s.status==='open'?'selected':''}>Open</option>
+        <option value="win" ${s.status==='win'?'selected':''}>Win</option>
+        <option value="loss" ${s.status==='loss'?'selected':''}>Loss</option>
+      </select></td>
+      <td><input type="number" step="any" class="form-input" style="width:90px;padding:4px 6px;font-size:11px;"
+        placeholder="exit" value="${s.exit||''}" onchange="updateExit('${s.id}',this.value)"></td>
+      <td style="font-weight:700;color:${pnlColor}">${pnlFmt}</td>
+      <td style="color:var(--text3);font-size:11px">${dateStr}</td>
+      <td><button class="del-btn" onclick="deleteSetup('${s.id}')">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateOutcome(id, status) {
+  const all = loadSetups();
+  const s = all.find(x => x.id === id);
+  if (!s) return;
+  s.status = status;
+  if (s.exit) s.pnl = calcPnl(s);
+  localStorage.setItem(LS_KEY, JSON.stringify(all));
+  renderList();
+}
+
+function updateExit(id, val) {
+  const all = loadSetups();
+  const s = all.find(x => x.id === id);
+  if (!s) return;
+  s.exit = parseFloat(val) || null;
+  s.pnl = s.exit ? calcPnl(s) : null;
+  localStorage.setItem(LS_KEY, JSON.stringify(all));
+  renderList();
+}
+
+function calcPnl(s) {
+  if (!s.exit || !s.entry) return null;
+  return s.direction === 'bull'
+    ? (s.exit - s.entry) / s.entry * 100
+    : (s.entry - s.exit) / s.entry * 100;
+}
+
+function deleteSetup(id) {
+  const all = loadSetups().filter(x => x.id !== id);
+  localStorage.setItem(LS_KEY, JSON.stringify(all));
+  renderList();
+}
+
+// ─── Auto-detect wave จาก candles จริง (zigzag — port จาก elliott.html) ───
+let autoCandles = [], autoWave = [];
+
+function azThreshold(cs){
+  if (cs.length < 2) return 3;
+  let tr = 0;
+  for (let i=1;i<cs.length;i++){
+    const c=cs[i], p=cs[i-1];
+    tr += Math.max(c.high-c.low, Math.abs(c.high-p.close), Math.abs(c.low-p.close));
+  }
+  const atr = tr/(cs.length-1);
+  const price = cs[cs.length-1].close || 1;
+  const pct = (atr/price)*100*3;
+  return Math.min(8, Math.max(1.2, +pct.toFixed(1)));
+}
+
+function azZigzag(cs, pct){
+  if (cs.length < 3) return cs.map((c,i)=>({index:i, price:c.close}));
+  const th = pct/100;
+  const piv = [{ index:0, price:cs[0].close }];
+  let trend = 0, extIdx = 0, extPx = cs[0].close;
+  for (let i=1;i<cs.length;i++){
+    const hi = cs[i].high, lo = cs[i].low;
+    if (trend <= 0 && hi >= extPx*(1+th)){
+      if (trend < 0) piv.push({ index:extIdx, price:extPx });
+      trend = 1; extIdx = i; extPx = hi;
+    } else if (trend >= 0 && lo <= extPx*(1-th)){
+      if (trend > 0) piv.push({ index:extIdx, price:extPx });
+      trend = -1; extIdx = i; extPx = lo;
+    } else if (trend > 0){
+      if (hi > extPx){ extPx = hi; extIdx = i; }
+    } else if (trend < 0){
+      if (lo < extPx){ extPx = lo; extIdx = i; }
+    } else {
+      if (hi > extPx){ extPx = hi; extIdx = i; }
+      else if (lo < extPx){ extPx = lo; extIdx = i; }
+    }
+  }
+  piv.push({ index:extIdx, price:extPx });
+  return piv.length > 2 ? piv.slice(1) : piv;
+}
+
+function azAdaptiveTh(cs, target){
+  let bestPct=azThreshold(cs), bestDiff=Infinity;
+  for (let pct=0.5; pct<=40; pct+=0.25){
+    const n = azZigzag(cs, pct).length;
+    if (n < 6) continue;
+    const d = Math.abs(n-target);
+    if (d < bestDiff){ bestDiff=d; bestPct=+pct.toFixed(2); }
+  }
+  return bestPct;
+}
+
+function azScore(pts, isImp, total){
+  const p = pts.map(x=>x.price);
+  const dir = Math.sign(p[1]-p[0]) || 1;
+  let s = 0;
+  if (isImp){
+    const len=(a,b)=>Math.abs(p[b]-p[a]);
+    const w1=len(0,1), w3=len(2,3), w5=len(4,5);
+    if ((p[2]-p[0])*dir > 0) s += 40;
+    if (!(w3 < w1 && w3 < w5)) s += 40;
+    if ((p[4]-p[1])*dir > 0) s += 40;
+    if (s === 120){ s += 30; if (w3>=w1 && w3>=w5) s += 10; }
+  } else {
+    if ((p[2]-p[0])*dir > 0) s += 40;
+    if ((p[3]-p[1])*dir > 0) s += 40;
+    if (s === 80) s += 30;
+  }
+  let mn=Infinity, mx=0;
+  for (let i=1;i<pts.length;i++){ const d=Math.abs(p[i]-p[i-1]); if(d<mn)mn=d; if(d>mx)mx=d; }
+  s -= Math.max(0, (mn>0?mx/mn:99)-6)*6;
+  if (total) s += (pts[pts.length-1].index-pts[0].index)/total*45;
+  return s;
+}
+
+function azBestWindow(pivots, startLow, count, isImp, total){
+  let best=null, bestScore=-Infinity;
+  for (let s=0; s+count<=pivots.length; s++){
+    if ((pivots[s+1].price > pivots[s].price) !== startLow) continue;
+    const win = pivots.slice(s, s+count);
+    const sc = azScore(win, isImp, total);
+    if (sc > bestScore){ bestScore=sc; best=win; }
+  }
+  return best ? { pts: best, score: bestScore } : { pts: [], score: -Infinity };
+}
+
+async function autoDetect(){
+  const symEl = document.getElementById('inp-sym');
+  const sym = (symEl.value.trim() || 'BTCUSDT').toUpperCase();
+  symEl.value = sym;
+  const tf = document.getElementById('inp-tf').value;
+  const hint = document.getElementById('form-hint');
+  const btn = document.getElementById('btn-auto');
+  btn.disabled = true;
+  hint.textContent = `⏳ กำลังดึงราคา ${sym} (${tf})...`;
+  try {
+    const res = await klaudFetch(`/api/candles/${sym}?interval=${tf}&limit=500`);
+    const cs = await res.json();
+    if (!Array.isArray(cs) || cs.length < 50) throw new Error(cs.error || 'ไม่พบข้อมูล symbol นี้');
+    autoCandles = cs;
+    const isImp = waveType === 'impulse';
+    const need = isImp ? 6 : 4;
+    // ลองหลายระดับความละเอียด zigzag — window ที่ผ่านกฎ Elliott ครบจะได้ score bonus จึงชนะเสมอถ้ามี
+    let win = { pts: [], score: -Infinity }, winPct = 0;
+    for (const target of [7, 9, 11, 13, 16]) {
+      const pct = azAdaptiveTh(cs, target);
+      const piv = azZigzag(cs, pct);
+      if (piv.length < need) continue;
+      for (const startLow of [true, false]) {
+        const w = azBestWindow(piv, startLow, need, isImp, cs.length);
+        if (w.score > win.score) { win = w; winPct = pct; }
+      }
+    }
+    if (!win.pts.length) throw new Error('ไม่พบ swing ชัดเจน — ลองเปลี่ยน Timeframe');
+    setDir(win.pts[1].price > win.pts[0].price ? 'bull' : 'bear');
+    const keys = isImp ? ['p0','w1','w2','w3','w4','w5'] : ['p0','wa','wb','wc'];
+    keys.forEach((k,i) => { document.getElementById('pt-'+k).value = win.pts[i] ? win.pts[i].price : ''; });
+    autoWave = win.pts;
+    drawAutoChart(cs, win.pts, sym, tf);
+    validate();
+    hint.textContent = `⚡ Auto: zigzag ${winPct}% จาก ${cs.length} แท่ง — ปรับตัวเลขเองได้ก่อนบันทึก`;
+  } catch(e) {
+    hint.textContent = '⚠ ' + e.message;
+  }
+  btn.disabled = false;
+}
+
+function drawAutoChart(cs, pts, sym, tf){
+  const wrap = document.getElementById('auto-chart-wrap');
+  wrap.style.display = '';
+  document.getElementById('auto-chart-title').textContent =
+    `${sym} · ${tf} · ${waveType === 'impulse' ? 'Impulse 0-5' : 'Corrective 0-A-B-C'} (auto)`;
+  const canvas = document.getElementById('auto-chart');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const padL = 8, padR = 52, padT = 14, padB = 18;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  let minP = Infinity, maxP = -Infinity;
+  cs.forEach(c => { if (c.low < minP) minP = c.low; if (c.high > maxP) maxP = c.high; });
+  const span = maxP - minP || 1;
+  const x = i => padL + i / (cs.length - 1) * plotW;
+  const y = p => padT + (maxP - p) / span * plotH;
+
+  // close line
+  ctx.beginPath();
+  cs.forEach((c, i) => i === 0 ? ctx.moveTo(x(0), y(c.close)) : ctx.lineTo(x(i), y(c.close)));
+  ctx.strokeStyle = 'rgba(139,148,158,.45)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // price axis (right)
+  ctx.fillStyle = 'rgba(139,148,158,.8)';
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.textAlign = 'left';
+  [maxP, (maxP+minP)/2, minP].forEach(p => ctx.fillText(fmt(p), W - padR + 6, y(p) + 3));
+
+  if (!pts.length) return;
+  const bull = pts[1].price > pts[0].price;
+  const lineCol = bull ? '#3fb950' : '#f85149';
+
+  // wave polyline
+  ctx.beginPath();
+  pts.forEach((p, i) => i === 0 ? ctx.moveTo(x(p.index), y(p.price)) : ctx.lineTo(x(p.index), y(p.price)));
+  ctx.strokeStyle = lineCol;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // points + labels
+  const labels = waveType === 'impulse' ? ['0','1','2','3','4','5'] : ['0','A','B','C'];
+  ctx.textAlign = 'center';
+  pts.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(x(p.index), y(p.price), 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = lineCol;
+    ctx.fill();
+    const isHigh = i === 0 ? pts[1].price < p.price : pts[i-1].price < p.price;
+    ctx.fillStyle = '#e6edf3';
+    ctx.font = '700 12px JetBrains Mono, monospace';
+    ctx.fillText(labels[i], x(p.index), y(p.price) + (isHigh ? -9 : 17));
+  });
+}
+
+window.addEventListener('resize', () => { if (autoCandles.length && autoWave.length) drawAutoChart(autoCandles, autoWave, document.getElementById('inp-sym').value, document.getElementById('inp-tf').value); });
+
+renderWaveInputs();
+buildNav('EW');
+fetchMarketBar();
+setInterval(fetchMarketBar, 30000);
+renderList();
+</script>
+</body>
+</html>

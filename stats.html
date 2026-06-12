@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>KLAUD — Stats</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+body{padding-top:104px;}
+.page{max-width:1100px;margin:0 auto;padding:24px 16px;}
+.page-title{font-size:20px;font-weight:800;margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--text2);margin-bottom:24px;}
+
+/* STAT CARDS */
+.stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+.stat-card{background:var(--bg1);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.sc-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.sc-val{font-size:26px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.sc-sub{font-size:11px;color:var(--text3);margin-top:4px;}
+
+/* CHART */
+.chart-section{background:var(--bg1);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:24px;}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.chart-title{font-size:14px;font-weight:700;}
+.chart-legend{display:flex;gap:16px;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;}
+.legend-dot{width:10px;height:10px;border-radius:50%;}
+canvas#pnl-chart{width:100%;height:220px;display:block;}
+
+/* BREAKDOWN */
+.breakdown-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.break-card{background:var(--bg1);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.break-title{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+.break-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.break-label{font-size:12px;color:var(--text1);width:100px;flex-shrink:0;}
+.break-bar-track{flex:1;background:var(--bg3);border-radius:3px;height:6px;overflow:hidden;}
+.break-bar-fill{height:100%;border-radius:3px;background:var(--blue);}
+.break-val{font-size:11px;font-weight:700;width:50px;text-align:right;font-family:'JetBrains Mono',monospace;}
+
+/* TABLE */
+.section-title{font-size:15px;font-weight:700;margin-bottom:12px;}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.f-btn{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .15s;}
+.f-btn.active{border-color:var(--blue);background:var(--blue-dim);color:var(--blue);}
+.trades-wrap{background:var(--bg1);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.empty-state{text-align:center;padding:40px;color:var(--text3);}
+.no-data-msg{text-align:center;padding:60px;color:var(--text3);}
+.no-data-msg a{color:var(--blue);text-decoration:none;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="index.html" class="topbar-logo"><div class="logo-icon">K</div><div class="logo-text">KL<span>AUD</span></div></a>
+  <nav class="topbar-nav" id="topbar-nav"></nav>
+  <div class="topbar-right"><div class="badge-live"><div class="dot"></div>Live</div></div>
+</header>
+<div class="market-bar" id="market-bar" style="position:fixed;top:52px;left:0;right:0;z-index:99;"></div>
+
+<div class="page">
+  <div class="page-title">📊 Performance Stats</div>
+  <div class="page-sub">วิเคราะห์ผลการเทรดจาก EW Setups ที่บันทึกไว้</div>
+
+  <!-- STAT CARDS -->
+  <div class="stat-row" id="stat-row">
+    <div class="stat-card"><div class="sc-label">Total Setups</div><div class="sc-val" id="s-total">–</div><div class="sc-sub">all logged</div></div>
+    <div class="stat-card"><div class="sc-label">Valid EW %</div><div class="sc-val" id="s-valid">–</div><div class="sc-sub">passed all rules</div></div>
+    <div class="stat-card"><div class="sc-label">Win Rate</div><div class="sc-val" id="s-wr">–</div><div class="sc-sub" id="s-wr-sub">closed trades</div></div>
+    <div class="stat-card"><div class="sc-label">Total PnL</div><div class="sc-val" id="s-pnl">–</div><div class="sc-sub">sum of closed</div></div>
+    <div class="stat-card"><div class="sc-label">Expectancy</div><div class="sc-val" id="s-exp">–</div><div class="sc-sub">avg R per trade</div></div>
+  </div>
+
+  <!-- CUMULATIVE PNL CHART -->
+  <div class="chart-section">
+    <div class="chart-header">
+      <div class="chart-title">Cumulative PnL — Closed Trades</div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>Your trades</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>Win</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>Loss</div>
+      </div>
+    </div>
+    <canvas id="pnl-chart"></canvas>
+    <div id="chart-empty" style="text-align:center;padding:40px;color:var(--text3);display:none;">ยังไม่มีเทรดที่ปิดแล้ว</div>
+  </div>
+
+  <!-- BREAKDOWN -->
+  <div class="breakdown-grid">
+    <div class="break-card">
+      <div class="break-title">By Wave Type</div>
+      <div id="breakdown-type"></div>
+    </div>
+    <div class="break-card">
+      <div class="break-title">By Direction</div>
+      <div id="breakdown-dir"></div>
+    </div>
+  </div>
+
+  <!-- TRADE TABLE -->
+  <div class="section-title">Trade History</div>
+  <div class="filter-row">
+    <button class="f-btn active" onclick="setFilter('all',this)">All</button>
+    <button class="f-btn" onclick="setFilter('win',this)">Win</button>
+    <button class="f-btn" onclick="setFilter('loss',this)">Loss</button>
+    <button class="f-btn" onclick="setFilter('open',this)">Open</button>
+    <button class="f-btn" onclick="setFilter('impulse',this)">Impulse</button>
+    <button class="f-btn" onclick="setFilter('corrective',this)">Corrective</button>
+  </div>
+  <div class="trades-wrap">
+    <table class="table" id="trades-tbl">
+      <thead><tr>
+        <th>Symbol</th><th>Type</th><th>Dir</th><th>TF</th>
+        <th>Entry</th><th>TP</th><th>SL</th><th>RR</th>
+        <th>Status</th><th>Exit</th><th>PnL%</th><th>Date</th>
+      </tr></thead>
+      <tbody id="trades-body"></tbody>
+    </table>
+    <div class="empty-state" id="empty-state" style="display:none;">ไม่มี trade ที่ตรง filter</div>
+  </div>
+  <div class="no-data-msg" id="no-data" style="display:none;">
+    ยังไม่มีข้อมูล — ไปที่ <a href="ew.html">EW Validator</a> เพื่อบันทึก setup
+  </div>
+</div>
+
+<script src="nav.js"></script>
+<script>
+const LS_KEY = 'klaud_ew_setups';
+let activeFilter = 'all';
+
+function loadSetups() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; }
+}
+function fmt(n) { return isNaN(n)||n==null ? '–' : n.toLocaleString('en',{maximumFractionDigits:2}); }
+
+function calcStats(setups) {
+  const closed = setups.filter(s => s.status==='win'||s.status==='loss');
+  const wins = setups.filter(s => s.status==='win');
+  const losses = setups.filter(s => s.status==='loss');
+  const withPnl = closed.filter(s => s.pnl!=null);
+  const totalPnl = withPnl.reduce((a,s) => a+s.pnl, 0);
+  const valid = setups.filter(s => s.valid).length;
+
+  // R-based expectancy: assume SL=1R, TP=RR*1R
+  let rSum = 0;
+  closed.forEach(s => { rSum += s.status==='win' ? (s.rr||2) : -1; });
+  const exp = closed.length ? rSum / closed.length : null;
+
+  return {
+    total: setups.length,
+    validPct: setups.length ? (valid/setups.length*100) : null,
+    winRate: closed.length ? (wins.length/closed.length*100) : null,
+    closedCount: closed.length,
+    totalPnl: withPnl.length ? totalPnl : null,
+    exp,
+    wins: wins.length, losses: losses.length,
+  };
+}
+
+function renderStatCards(st) {
+  document.getElementById('s-total').textContent = st.total || '0';
+  document.getElementById('s-valid').textContent = st.validPct != null ? st.validPct.toFixed(0)+'%' : '–';
+  const wrEl = document.getElementById('s-wr');
+  wrEl.textContent = st.winRate != null ? st.winRate.toFixed(0)+'%' : '–';
+  wrEl.style.color = st.winRate > 50 ? 'var(--green)' : st.winRate < 33 ? 'var(--red)' : 'var(--yellow)';
+  document.getElementById('s-wr-sub').textContent = `${st.wins}W / ${st.losses}L`;
+  const pnlEl = document.getElementById('s-pnl');
+  pnlEl.textContent = st.totalPnl != null ? (st.totalPnl>=0?'+':'')+st.totalPnl.toFixed(2)+'%' : '–';
+  pnlEl.style.color = st.totalPnl > 0 ? 'var(--green)' : st.totalPnl < 0 ? 'var(--red)' : 'var(--text1)';
+  const expEl = document.getElementById('s-exp');
+  expEl.textContent = st.exp != null ? (st.exp>=0?'+':'')+st.exp.toFixed(2)+'R' : '–';
+  expEl.style.color = st.exp > 0 ? 'var(--green)' : st.exp < 0 ? 'var(--red)' : 'var(--text1)';
+}
+
+function renderChart(setups) {
+  const canvas = document.getElementById('pnl-chart');
+  const chartEmpty = document.getElementById('chart-empty');
+  const closed = setups.filter(s => (s.status==='win'||s.status==='loss') && s.pnl!=null)
+    .sort((a,b) => new Date(a.date)-new Date(b.date));
+
+  if (!closed.length) {
+    canvas.style.display = 'none';
+    chartEmpty.style.display = '';
+    return;
+  }
+  canvas.style.display = '';
+  chartEmpty.style.display = 'none';
+
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || 800, H = 220;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const cumulative = [];
+  let running = 0;
+  cumulative.push(0);
+  closed.forEach(s => { running += s.pnl; cumulative.push(running); });
+
+  const pad = { t:10, r:20, b:30, l:50 };
+  const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+
+  const minVal = Math.min(0, ...cumulative);
+  const maxVal = Math.max(0, ...cumulative);
+  const range = maxVal - minVal || 1;
+
+  function x(i) { return pad.l + i / (cumulative.length-1) * cw; }
+  function y(v) { return pad.t + ch - (v - minVal) / range * ch; }
+
+  ctx.clearRect(0, 0, W, H);
+
+  // grid
+  ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
+  for (let i=0; i<=4; i++) {
+    const yy = pad.t + ch/4*i;
+    ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(pad.l+cw, yy); ctx.stroke();
+    const val = maxVal - range/4*i;
+    ctx.fillStyle = '#8b949e'; ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'right'; ctx.fillText((val>=0?'+':'')+val.toFixed(1)+'%', pad.l-6, yy+4);
+  }
+
+  // zero line
+  const zy = y(0);
+  ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1.5;
+  ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(pad.l,zy); ctx.lineTo(pad.l+cw,zy); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // area fill
+  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t+ch);
+  grad.addColorStop(0, running >= 0 ? 'rgba(63,185,80,0.15)' : 'rgba(248,81,73,0.15)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(0));
+  cumulative.forEach((v,i) => ctx.lineTo(x(i), y(v)));
+  ctx.lineTo(x(cumulative.length-1), y(0));
+  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+  // line
+  ctx.beginPath();
+  cumulative.forEach((v,i) => i===0 ? ctx.moveTo(x(i),y(v)) : ctx.lineTo(x(i),y(v)));
+  ctx.strokeStyle = running >= 0 ? '#3fb950' : '#f85149';
+  ctx.lineWidth = 2; ctx.stroke();
+
+  // dots for each trade
+  closed.forEach((s,i) => {
+    const xi = x(i+1), yi = y(cumulative[i+1]);
+    ctx.beginPath(); ctx.arc(xi, yi, 4, 0, Math.PI*2);
+    ctx.fillStyle = s.status==='win' ? '#3fb950' : '#f85149';
+    ctx.fill();
+  });
+
+  // x-axis labels
+  ctx.fillStyle = '#8b949e'; ctx.font = '10px Inter, sans-serif'; ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(closed.length / 6));
+  closed.forEach((s,i) => {
+    if (i % step !== 0) return;
+    const d = new Date(s.date);
+    const lbl = (d.getMonth()+1)+'/'+(d.getDate());
+    ctx.fillText(lbl, x(i+1), H - 4);
+  });
+}
+
+function renderBreakdown(setups) {
+  function breakdownHtml(groups) {
+    const max = Math.max(...groups.map(g=>g.total), 1);
+    return groups.map(g => {
+      const wr = g.closed ? (g.wins/g.closed*100).toFixed(0)+'%' : '–';
+      const barW = (g.total/max*100).toFixed(0);
+      const barColor = g.closed && g.wins/g.closed > 0.5 ? 'var(--green)' : g.closed && g.wins/g.closed < 0.33 ? 'var(--red)' : 'var(--blue)';
+      return `<div class="break-row">
+        <div class="break-label">${g.label}</div>
+        <div class="break-bar-track"><div class="break-bar-fill" style="width:${barW}%;background:${barColor}"></div></div>
+        <div class="break-val" style="color:${barColor}">${g.total} (${wr})</div>
+      </div>`;
+    }).join('');
+  }
+
+  function grp(setups, key, vals) {
+    return vals.map(v => {
+      const sub = setups.filter(s => s[key]===v);
+      const closed = sub.filter(s=>s.status==='win'||s.status==='loss');
+      return { label:v, total:sub.length, closed:closed.length, wins:sub.filter(s=>s.status==='win').length };
+    });
+  }
+
+  document.getElementById('breakdown-type').innerHTML = breakdownHtml(grp(setups,'type',['impulse','corrective']));
+  document.getElementById('breakdown-dir').innerHTML = breakdownHtml(grp(setups,'direction',['bull','bear']));
+}
+
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.f-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable(loadSetups());
+}
+
+function renderTable(setups) {
+  const filtered = activeFilter === 'all' ? setups : setups.filter(s =>
+    activeFilter === 'win' ? s.status==='win' :
+    activeFilter === 'loss' ? s.status==='loss' :
+    activeFilter === 'open' ? s.status==='open' :
+    s.type === activeFilter);
+  const tbody = document.getElementById('trades-body');
+  const empty = document.getElementById('empty-state');
+  if (!filtered.length) { tbody.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = filtered.map(s => {
+    const pnlFmt = s.pnl!=null ? (s.pnl>=0?'+':'')+s.pnl.toFixed(2)+'%' : '–';
+    const pnlColor = s.pnl>0?'var(--green)':s.pnl<0?'var(--red)':'var(--text2)';
+    const stColor = s.status==='win'?'var(--green)':s.status==='loss'?'var(--red)':'var(--text2)';
+    const dir = s.direction==='bull'?'<span style="color:var(--green)">▲</span>':'<span style="color:var(--red)">▼</span>';
+    const typeTag = s.type==='impulse'?'1-5':'A-C';
+    const dateStr = new Date(s.date).toLocaleDateString('th',{day:'2-digit',month:'short',year:'2-digit'});
+    return `<tr>
+      <td style="font-weight:700;font-family:'JetBrains Mono',monospace">${s.sym}</td>
+      <td>${typeTag}</td><td>${dir}</td>
+      <td style="color:var(--text2)">${s.tf}</td>
+      <td style="font-family:'JetBrains Mono',monospace">${fmt(s.entry)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--green)">${fmt(s.tp)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--red)">${fmt(s.sl)}</td>
+      <td style="color:var(--yellow)">${s.rr||'–'}R</td>
+      <td style="font-weight:700;color:${stColor}">${s.status.toUpperCase()}</td>
+      <td style="font-family:'JetBrains Mono',monospace">${fmt(s.exit)}</td>
+      <td style="font-weight:700;color:${pnlColor}">${pnlFmt}</td>
+      <td style="color:var(--text3);font-size:11px">${dateStr}</td>
+    </tr>`;
+  }).join('');
+}
+
+function render() {
+  const setups = loadSetups();
+  const noData = document.getElementById('no-data');
+  const tradesTable = document.getElementById('trades-tbl');
+
+  if (!setups.length) {
+    noData.style.display = '';
+    tradesTable.style.display = 'none';
+    document.getElementById('chart-empty').style.display = '';
+    document.getElementById('pnl-chart').style.display = 'none';
+    return;
+  }
+  noData.style.display = 'none';
+  tradesTable.style.display = '';
+
+  const st = calcStats(setups);
+  renderStatCards(st);
+  renderChart(setups);
+  renderBreakdown(setups);
+  renderTable(setups);
+}
+
+buildNav('Stats');
+fetchMarketBar();
+setInterval(fetchMarketBar, 30000);
+render();
+window.addEventListener('storage', e => { if (e.key===LS_KEY) render(); });
+</script>
+</body>
+</html>

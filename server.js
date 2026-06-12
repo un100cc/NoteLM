@@ -13,7 +13,7 @@ app.use(express.json());
 
 // ─── Clean URL routes — ต้องอยู่ก่อน static middleware ───
 ['/', '/dashboard'].forEach(r => app.get(r, (_, res) => res.sendFile(path.join(__dirname, 'index.html'))));
-['scanner', 'watchlist', 'log', 'strategy', 'cdc'].forEach(p =>
+['scanner', 'watchlist', 'elliott', 'shockretest', 'log', 'strategy', 'cdc'].forEach(p =>
   app.get(`/${p}`, (_, res) => res.sendFile(path.join(__dirname, `${p}.html`)))
 );
 
@@ -383,13 +383,14 @@ app.get('/api/mtf/:symbol', async (req, res) => {
 app.get('/api/candles/:symbol', async (req, res) => {
   const { symbol } = req.params;
   const { interval = '1h', limit = 200 } = req.query;
-  const key = `candles:${symbol}:${interval}`;
+  const key = `candles:${symbol}:${interval}:${limit}`;
   const cached = getCache(key);
   if (cached) return res.json(cached);
   try {
     const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
     const r = await fetch(url);
     const data = await r.json();
+    if (!Array.isArray(data)) return res.status(404).json({ error: data.msg || 'No candle data' });
     const candles = data.map(k => ({
       time: Math.floor(k[0] / 1000),
       open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5]
