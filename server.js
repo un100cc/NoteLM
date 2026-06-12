@@ -13,7 +13,7 @@ app.use(express.json());
 
 // ─── Clean URL routes — ต้องอยู่ก่อน static middleware ───
 ['/', '/dashboard'].forEach(r => app.get(r, (_, res) => res.sendFile(path.join(__dirname, 'index.html'))));
-['scanner', 'watchlist', 'log', 'strategy'].forEach(p =>
+['scanner', 'watchlist', 'log', 'strategy', 'cdc'].forEach(p =>
   app.get(`/${p}`, (_, res) => res.sendFile(path.join(__dirname, `${p}.html`)))
 );
 

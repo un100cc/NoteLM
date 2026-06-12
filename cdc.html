@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>KLAUD — CDC ActionZone</title><link rel="stylesheet" href="_shared.css">
+<style>
+.cdc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.sum-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+.sum-card{background:var(--bg1);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.sum-label{font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.sum-val{font-size:22px;font-weight:800;margin-top:4px;font-family:'JetBrains Mono',monospace;}
+.zone-pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.z-GREEN{background:#3fb95022;color:var(--green);}
+.z-BLUE{background:#378add22;color:#58a6ff;}
+.z-LBLUE{background:#39c5cf22;color:#39c5cf;}
+.z-YELLOW{background:#d2992222;color:var(--yellow);}
+.z-ORANGE{background:#f0883e22;color:#f0883e;}
+.z-RED{background:#f8514922;color:var(--red);}
+.pos-badge{font-size:11px;font-weight:800;}
+.pos-long{color:var(--green);}
+.pos-cash{color:var(--text3);}
+.sig-buy{color:var(--green);font-weight:700;}
+.sig-sell{color:var(--red);font-weight:700;}
+.cdc-note{background:var(--bg1);border-left:3px solid var(--yellow);border-radius:0 8px 8px 0;padding:10px 14px;font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:16px;}
+.cdc-table-wrap{background:var(--bg1);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a href="index.html" class="topbar-logo"><div class="logo-icon">K</div><div class="logo-text">KL<span>AUD</span></div></a>
+  <nav class="topbar-nav" id="topbar-nav"></nav>
+  <div class="topbar-right">
+    <div class="badge-live"><div class="dot"></div>Daily</div>
+    <button class="btn btn-ghost" onclick="loadAll()">⟳</button>
+  </div>
+</header>
+<div class="market-bar" id="market-bar" style="position:fixed;top:52px;left:0;right:0;z-index:99;"></div>
+
+<div class="page-layout" style="margin-top:104px;height:calc(100vh - 104px);">
+  <aside class="sidebar">
+    <div class="sidebar-section">Menu</div>
+    <a href="index.html"     class="sidebar-item"><span class="si-icon">📊</span> Dashboard</a>
+    <a href="scanner.html"   class="sidebar-item"><span class="si-icon">🔍</span> Scanner</a>
+    <a href="watchlist.html" class="sidebar-item"><span class="si-icon">⭐</span> Watchlist</a>
+    <a href="cdc.html"       class="sidebar-item active"><span class="si-icon">🚦</span> CDC Zone</a>
+    <a href="strategy.html"  class="sidebar-item"><span class="si-icon">📈</span> Strategy</a>
+    <div class="sidebar-section" style="margin-top:8px">Summary</div>
+    <div style="padding:8px 16px;display:flex;flex-direction:column;gap:8px;font-size:12px;">
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--green)">LONG</span><span id="sb-long" style="font-weight:700;color:var(--green)">–</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">CASH</span><span id="sb-cash" style="font-weight:700">–</span></div>
+    </div>
+  </aside>
+  <div class="main-content">
+    <div class="content-body">
+      <div class="cdc-header">
+        <div><div class="page-title">🚦 CDC ActionZone — Daily Signals</div>
+        <div class="page-sub">EMA12/26 trend following (long/flat) · สัญญาณยืนยันที่ "ราคาปิดวัน" เท่านั้น</div></div>
+      </div>
+
+      <div class="cdc-note">
+        ⚠️ <b>กติกา:</b> ซื้อเมื่อแท่ง<span style="color:var(--green)">เขียวแรก</span> ขายเมื่อแท่ง<span style="color:var(--red)">แดงแรก</span> ตัดสินใจที่ราคาปิดวัน (~07:00 น. ไทย) · ระบบนี้ผ่าน backtest 2021–2026: CAGR ~30%, <b>MaxDD -55%</b> (มีปีที่ขาดทุน — 2025 ทั้งปี -22%) · หลักฐานอยู่ใน <code>bench/REPORT.md</code> · ไม่ใช่คำแนะนำการลงทุน
+      </div>
+
+      <div class="sum-grid">
+        <div class="sum-card"><div class="sum-label">เหรียญสถานะ LONG</div><div class="sum-val" id="c-long" style="color:var(--green)">–</div></div>
+        <div class="sum-card"><div class="sum-label">เหรียญสถานะ CASH</div><div class="sum-val" id="c-cash">–</div></div>
+        <div class="sum-card"><div class="sum-label">สัญญาณใหม่ ≤7 วัน</div><div class="sum-val" id="c-fresh" style="color:var(--yellow)">–</div></div>
+        <div class="sum-card"><div class="sum-label">อัปเดตล่าสุด</div><div class="sum-val" id="c-time" style="font-size:14px;">–</div></div>
+      </div>
+
+      <div class="cdc-table-wrap">
+        <table class="table">
+          <thead><tr>
+            <th>เหรียญ</th><th>ราคา</th><th>Zone วันนี้</th><th>สถานะ</th>
+            <th>สัญญาณล่าสุด</th><th>วันที่</th><th>ราคา ณ สัญญาณ</th><th>P&L ตั้งแต่สัญญาณ</th>
+          </tr></thead>
+          <tbody id="cdc-body"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:30px;">กำลังโหลดข้อมูล daily 20 เหรียญ...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="_nav.js"></script>
+<script>
+const COINS = ['BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT','ADAUSDT','DOTUSDT','LINKUSDT','AVAXUSDT','SUIUSDT',
+               'STXUSDT','XLMUSDT','ICPUSDT','DOGEUSDT','APTUSDT','FETUSDT','RUNEUSDT','NEARUSDT','ATOMUSDT','LTCUSDT'];
+
+function emaSeries(closes, n) {
+  const out = new Array(closes.length); const k = 2 / (n + 1);
+  let e = closes[0];
+  for (let i = 0; i < closes.length; i++) { e = i === 0 ? e : closes[i] * k + e * (1 - k); out[i] = e; }
+  return out;
+}
+
+// Faithful CDC ActionZone V3: zone colors + alternating buy/sell state (long/flat)
+function cdcCompute(candles) {
+  const closes = candles.map(c => c.close);
+  const fast = emaSeries(closes, 12), slow = emaSeries(closes, 26);
+  let state = 0, prevGreen = false, prevRed = false;
+  let lastSig = null;
+  for (let i = 0; i < closes.length; i++) {
+    const green = fast[i] > slow[i] && closes[i] > fast[i];
+    const red = fast[i] < slow[i] && closes[i] < fast[i];
+    const buycond = green && !prevGreen;
+    const sellcond = red && !prevRed;
+    if (i >= 30) {
+      if (buycond && state !== 1) { state = 1; lastSig = { type: 'BUY', i, price: closes[i], time: candles[i].time }; }
+      else if (sellcond && state === 1) { state = 0; lastSig = { type: 'SELL', i, price: closes[i], time: candles[i].time }; }
+    }
+    prevGreen = green; prevRed = red;
+  }
+  const i = closes.length - 1;
+  const bull = fast[i] > slow[i];
+  const zone = bull
+    ? (closes[i] > fast[i] ? 'GREEN' : (closes[i] < slow[i] ? 'ORANGE' : 'YELLOW'))
+    : (closes[i] < fast[i] ? 'RED' : (closes[i] > slow[i] ? 'BLUE' : 'LBLUE'));
+  return { zone, state, lastSig, price: closes[i] };
+}
+
+const fmtP = p => p >= 1000 ? '$' + p.toLocaleString('en', { maximumFractionDigits: 2 }) : p >= 1 ? '$' + p.toFixed(3) : '$' + p.toFixed(5);
+const fmtD = ms => new Date(ms).toISOString().slice(0, 10);
+
+async function loadAll() {
+  const rows = [];
+  for (const sym of COINS) {
+    try {
+      const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=1d&limit=500`);
+      const raw = await res.json();
+      if (!Array.isArray(raw) || raw.length < 60) continue;
+      // ตัดแท่งวันนี้ที่ยังไม่ปิดออก — สัญญาณ CDC ยืนยันที่ "ราคาปิด" เท่านั้น
+      const candles = raw.slice(0, -1).map(k => ({ time: k[0], close: +k[4] }));
+      const livePrice = +raw[raw.length - 1][4];
+      rows.push({ sym, ...cdcCompute(candles), livePrice });
+    } catch (e) { /* ข้ามเหรียญที่โหลดไม่ได้ */ }
+  }
+  render(rows);
+}
+
+function render(rows) {
+  rows.sort((a, b) => (b.state - a.state) || ((b.lastSig?.time || 0) - (a.lastSig?.time || 0)));
+  const now = Date.now();
+  let nLong = 0, nFresh = 0;
+  const html = rows.map(r => {
+    if (r.state === 1) nLong++;
+    const fresh = r.lastSig && (now - r.lastSig.time) < 7 * 864e5;
+    if (fresh) nFresh++;
+    const pnl = r.lastSig ? ((r.state === 1 ? r.livePrice / r.lastSig.price - 1 : r.lastSig.price / r.livePrice - 1) * 100) : null;
+    const pnlShow = r.lastSig && r.state === 1 ? `<span style="color:${pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%</span>` : '<span style="color:var(--text3)">–</span>';
+    return `<tr>
+      <td style="font-weight:700">${r.sym.replace('USDT', '')}${fresh ? ' <span style="font-size:9px;color:var(--yellow)">●NEW</span>' : ''}</td>
+      <td style="font-family:'JetBrains Mono',monospace">${fmtP(r.livePrice)}</td>
+      <td><span class="zone-pill z-${r.zone}">${r.zone}</span></td>
+      <td><span class="pos-badge ${r.state === 1 ? 'pos-long' : 'pos-cash'}">${r.state === 1 ? 'LONG' : 'CASH'}</span></td>
+      <td>${r.lastSig ? `<span class="sig-${r.lastSig.type.toLowerCase()}">${r.lastSig.type}</span>` : '–'}</td>
+      <td style="color:var(--text2)">${r.lastSig ? fmtD(r.lastSig.time) : '–'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--text2)">${r.lastSig ? fmtP(r.lastSig.price) : '–'}</td>
+      <td>${pnlShow}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('cdc-body').innerHTML = html || '<tr><td colspan="8" style="text-align:center;padding:30px;">โหลดข้อมูลไม่สำเร็จ</td></tr>';
+  document.getElementById('c-long').textContent = nLong;
+  document.getElementById('c-cash').textContent = rows.length - nLong;
+  document.getElementById('c-fresh').textContent = nFresh;
+  document.getElementById('c-time').textContent = new Date().toLocaleString('th-TH', { hour12: false });
+  document.getElementById('sb-long').textContent = nLong;
+  document.getElementById('sb-cash').textContent = rows.length - nLong;
+}
+
+buildNav('CDC');
+fetchMarketBar();
+loadAll();
+setInterval(loadAll, 5 * 60 * 1000);
+</script>
+</body></html>
