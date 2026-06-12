@@ -60,14 +60,38 @@ Chague et al. 2020, ติดตามทุกคนในตลาดบรา
 4. เสี่ยงต่อไม้ ≤ 1% ไม่ใช่ 3–7% ตามที่ doc เขียน — ที่ WR จริง 29% สูตรเดิมคือสูตรล้างพอร์ต
 5. เงินก้อนใหญ่ → ระบบรายวันที่พิสูจน์แล้ว (CDC/Donchian) หรือ DCA · เงินเทรดมือ = เงินที่เสียได้โดยไม่เจ็บ
 
+## 🚦 หน้า CDC ActionZone — ระบบที่ผ่าน benchmark พร้อมใช้
+
+เปิด [`cdc.html`](https://un100cc.github.io/NoteLM/cdc.html) — บอกครบใน 3 วินาที:
+**วันนี้ต้องทำอะไร** (ส่วนใหญ่คือ "ไม่ต้องทำอะไร" — นั่นคือ feature), สถานะ LONG/CASH
+ทุกเหรียญ, เครื่องคิดแบ่งไม้พร้อมตัวเลข drawdown เลวร้ายสุด, และกราฟ
+"ถ้าทำตามระบบ 100%" เทียบถือเฉยๆ · เช็ควันละครั้งหลัง 07:00 น. ไทย พอ
+
+### แจ้งเตือนสัญญาณอัตโนมัติผ่าน Telegram (ฟรี ไม่ต้องมี server)
+
+มี GitHub Actions เช็คสัญญาณให้ทุกวัน 07:15 น. ไทย (`.github/workflows/cdc-alert.yml`)
+ตั้งค่าครั้งเดียว 5 นาที:
+
+1. คุยกับ [@BotFather](https://t.me/BotFather) ใน Telegram → `/newbot` → ได้ **token**
+2. ทักหาบอทตัวเอง 1 ข้อความ แล้วเปิด `https://api.telegram.org/bot<TOKEN>/getUpdates`
+   → เอาเลข `chat.id`
+3. ใน repo: Settings → Secrets and variables → Actions → เพิ่ม
+   `TELEGRAM_BOT_TOKEN` และ `TELEGRAM_CHAT_ID`
+4. ทดสอบ: แท็บ Actions → "CDC Daily Alert" → Run workflow
+
+วันไหนมีสัญญาณซื้อ/ขาย บอทจะทักเอง วันไหนเงียบคือไม่มีอะไรต้องทำ
+(LINE Notify ใช้ไม่ได้แล้ว — ปิดบริการถาวร มี.ค. 2025)
+
+ทดสอบในเครื่อง: `node alert/cdc-alert.js` (ไม่ใส่ token = dry-run พิมพ์ผลเฉยๆ)
+
 ## วิธีรันการทดสอบเองทั้งหมด
 
 ```bash
-git checkout strategy-benchmark
 node bench/benchmark.js   # แก้ bias + walk-forward 7 ช่วง + random baseline
 node bench/ablation.js    # ทำไมตัวเลขเดิมถึงโป่ง (waterfall)
 node bench/wide-sl.js     # ทดลอง SL 20%
 node bench/cdc.js         # CDC ActionZone ที่ work จริง
+node bench/divchoch.js    # replicate สูตร Divergence+Choch
 ```
 
 ทุกตัวเลขใน README นี้ reproduce ได้จากโค้ดข้างบน ไม่ต้องเชื่อ — รันเอง

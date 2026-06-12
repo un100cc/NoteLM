@@ -1,0 +1,22 @@
+name: CDC Daily Alert
+
+on:
+  schedule:
+    # 00:15 UTC = 07:15 น. ไทย — หลังแท่ง daily ของ Binance ปิด (00:00 UTC)
+    - cron: '15 0 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check signals and notify
+        run: node alert/cdc-alert.js
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
