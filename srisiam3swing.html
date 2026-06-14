@@ -169,6 +169,11 @@
     <div class="modal-head">
       <span class="sym" id="m-sym">–</span>
       <span class="meta" id="m-meta"></span>
+      <select id="ew-degree" onchange="redrawCount()" style="margin-left:auto" title="ความละเอียดของ Elliott count">
+        <option value="1.5">degree ละเอียด</option>
+        <option value="3" selected>degree กลาง</option>
+        <option value="6">degree หยาบ</option>
+      </select>
       <button class="x" onclick="closeChart()" title="ปิด">✕</button>
     </div>
     <div class="modal-legend" id="m-legend"></div>
@@ -459,19 +464,41 @@ function render(){
 /* ============================================================
    chart modal — ทรงเต็ม: (1)-(5) + trendline 2-4 + A/B/C + 100 of A
    ============================================================ */
-let CHART=null;
+let CHART=null,CUR_SYM=null,CUR_LABEL=null;
 function emaArr(closes,p){const k=2/(p+1);let e=closes[0];const out=[];for(let i=0;i<closes.length;i++){e=i?closes[i]*k+e*(1-k):closes[i];out.push(e);}return out;}
+// ── degree-aware Elliott counter: zigzag threshold ตาม ATR → swing ใหญ่พอเท่านั้นถึงนับ = คุม degree ──
+function ewAtr(c,n=14){if(c.length<n+1)return 0;let s=0;for(let i=c.length-n;i<c.length;i++){const p=c[i-1];s+=Math.max(c[i].high-c[i].low,Math.abs(c[i].high-p.close),Math.abs(c[i].low-p.close));}return s/n;}
+function pctZigzag(c,thr){const piv=[];let dir=0,hi=c[0].high,hiIdx=0,lo=c[0].low,loIdx=0;
+  for(let i=1;i<c.length;i++){if(c[i].high>hi){hi=c[i].high;hiIdx=i;}if(c[i].low<lo){lo=c[i].low;loIdx=i;}
+    if(dir>=0&&c[i].low<=hi*(1-thr)){piv.push({i:hiIdx,price:hi,t:'H'});dir=-1;lo=c[i].low;loIdx=i;}
+    else if(dir<=0&&c[i].high>=lo*(1+thr)){piv.push({i:loIdx,price:lo,t:'L'});dir=1;hi=c[i].high;hiIdx=i;}}
+  return piv;}
+function findImpulse(z){for(let end=z.length-1;end>=5;end--){const w=[z[end-5],z[end-4],z[end-3],z[end-2],z[end-1],z[end]];
+  const up=w[1].t==='H';const seq=up?['L','H','L','H','L','H']:['H','L','H','L','H','L'];
+  if(!w.every((p,k)=>p.t===seq[k]))continue;const P=w.map(p=>p.price);let ok;
+  if(up){ok=P[1]>P[0]&&P[2]>P[0]&&P[3]>P[1]&&P[4]>P[1]&&P[5]>P[4];const l1=P[1]-P[0],l3=P[3]-P[2],l5=P[5]-P[4];if(l3<l1&&l3<l5)ok=false;}
+  else{ok=P[1]<P[0]&&P[2]<P[0]&&P[3]<P[1]&&P[4]<P[1]&&P[5]<P[4];const l1=P[0]-P[1],l3=P[2]-P[3],l5=P[4]-P[5];if(l3<l1&&l3<l5)ok=false;}
+  if(ok)return{dir:up?'UP':'DOWN',w,end};}return null;}
+function redrawCount(){if(CUR_SYM)openChart(CUR_SYM,CUR_LABEL);}
 function openChart(sym,label){
   const d=LIVE[sym];if(!d||d.error||!Array.isArray(d.candles)||!d.candles.length)return;
+  CUR_SYM=sym;CUR_LABEL=label;
   const sig=d.sig,c=d.candles;
-  // ส่งเฉพาะแท่งในช่วงโครงสร้าง (จากก่อนจุด 1 ~15 แท่ง → ปัจจุบัน) → zoom เห็น count ชัดทุก browser
-  const startIdx=(sig&&sig.idx)?Math.max(0,(sig.idx.p1!=null?sig.idx.p1:sig.idx.p5)-15):0;
+  // ── degree-aware Elliott count: zigzag threshold ตาม ATR (ปรับ degree ได้จากปุ่ม) ──
+  const thrK=+((document.getElementById('ew-degree')||{}).value||3);
+  const thr=Math.max(thrK*ewAtr(c)/c[c.length-1].close,0.008);
+  const zz=pctZigzag(c,thr);const imp=findImpulse(zz);
+  // zoom: อิงคลื่นที่นับได้ (ถ้ามี) → setup → ไม่งั้นท้าย ~120 แท่ง
+  const anchorIdx=imp?imp.w[0].i:(sig&&sig.idx?(sig.idx.p1!=null?sig.idx.p1:sig.idx.p5):Math.max(0,c.length-120));
+  const startIdx=Math.max(0,anchorIdx-12);
   const view=c.slice(startIdx);
   document.getElementById('m-sym').textContent=label||sym;
-  let meta=`${SETUP_TF} · ${c.length} แท่ง · degree ${HTF_TF} ${d.bias.label}`;
-  if(sig)meta+=` · ${sig.side==='LONG'?'▲ LONG':'▼ SHORT'} · ${sig.stage} · Div ${sig.divStrength} ${sig.divExt}%`;
+  const degTxt=thrK==1.5?'ละเอียด':thrK==6?'หยาบ':'กลาง';
+  let meta=`${SETUP_TF} · degree count: ${degTxt} (${(thr*100).toFixed(1)}%)`;
+  if(sig)meta+=` · setup ${sig.side==='LONG'?'▲LONG':'▼SHORT'} ${sig.stage} Div ${sig.divStrength}`;
+  else meta+=' · ไม่มี setup (ดูโครงคลื่น)';
   document.getElementById('m-meta').textContent=meta;
-  document.getElementById('cap-setup').innerHTML=`📊 setup <b>${SETUP_TF}</b> — ทรง impulse (1)-(5) + A·B·C`;
+  document.getElementById('cap-setup').innerHTML=`📊 setup <b>${SETUP_TF}</b> — Elliott count ตาม degree ที่เลือก`;
   document.getElementById('cap-htf').innerHTML=`🌊 degree ใหญ่ <b>${HTF_TF}</b> — ${d.bias.label} (โครงคลื่น HH/HL vs LH/LL)`;
   document.getElementById('modal').classList.add('open');
   const el=document.getElementById('chart');el.innerHTML='';if(CHART){CHART.remove();CHART=null;}
@@ -485,43 +512,26 @@ function openChart(sym,label){
   const ema=emaArr(c.map(x=>x.close),20);
   CHART.addLineSeries({color:'#e7b00866',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(view.map((x,gi)=>({time:x.time,value:ema[startIdx+gi]})));
   let legend='<span>🕯 '+SETUP_TF+'</span><span><i style="border-color:#e7b008"></i>EMA20</span>';
-  const tAt=i=>(i!=null&&c[i])?c[i].time:null;
+  const markers=[];
+  if(imp){
+    const W=imp.w;
+    CHART.addLineSeries({color:'#e8eef5',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(W.map(p=>({time:c[p.i].time,value:p.price})));
+    ['','1','2','3','4','5'].forEach((t,k)=>{if(!t)return;const p=W[k];markers.push({time:c[p.i].time,position:p.t==='H'?'aboveBar':'belowBar',color:k==5?'#e7b008':'#e8eef5',shape:'circle',text:t});});
+    legend+=`<span><i style="border-color:#e8eef5"></i>impulse 1-5 (${imp.dir==='UP'?'ขึ้น':'ลง'})</span>`;
+  }else if(zz.length>=2){
+    CHART.addLineSeries({color:'#9aa6b2aa',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(zz.map(p=>({time:c[p.i].time,value:p.price})));
+    let lh=null,ll=null;zz.forEach((p,idx)=>{let t;if(p.t==='H'){t=lh==null?'H':p.price>lh?'HH':'LH';lh=p.price;}else{t=ll==null?'L':p.price>ll?'HL':'LL';ll=p.price;}
+      if(idx>=zz.length-8)markers.push({time:c[p.i].time,position:p.t==='H'?'aboveBar':'belowBar',color:'#9aa6b2',shape:'circle',text:t});});
+    legend+='<span style="color:var(--txt3)">degree นี้ยังไม่เป็น impulse 5 คลื่น — ลองปรับ degree</span>';
+  }
+  // ── trade levels จาก scan (ถ้ามี setup) ──
   if(sig){
-    const I=sig.idx,P=sig.points;
-    // ── เส้นโครง Elliott impulse 1→2→3→4→5 (จบเทรนด์เดิม) ──
-    const impPts=[[I.p1,P.p1],[I.p2,P.p2],[I.p3,P.p3],[I.p4,P.p4],[I.p5,P.p5]].filter(x=>x[0]!=null&&x[1]!=null&&c[x[0]]);
-    if(impPts.length>=2)CHART.addLineSeries({color:'#e8eef5',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false})
-      .setData(impPts.map(x=>({time:c[x[0]].time,value:x[1]})));
-    const markers=[];
-    const mk=(i,pos,col,shape,txt)=>{if(i!=null&&c[i])markers.push({time:c[i].time,position:pos,color:col,shape,text:txt});};
-    mk(I.p1,'aboveBar','#e8eef5','circle','1');mk(I.p2,'belowBar','#e8eef5','circle','2');
-    mk(I.p3,'aboveBar','#e8eef5','circle','3');mk(I.p4,'belowBar','#e8eef5','circle','4');
-    mk(I.p5,'aboveBar','#e7b008',sig.side==='LONG'?'arrowUp':'arrowDown','5');
-    if(I.choch!=null)mk(I.choch,'belowBar','#d8a015','square','ChoCh');
-    // ── เส้นโครง ABC correction 5→A→B→C (คลื่นกลับตัว) ──
-    if(I.m1!=null&&sig.m1){
-      const abc=[{time:c[I.p5].time,value:P.p5},{time:c[I.m1].time,value:sig.m1.low}];
-      mk(I.m1,'belowBar','#5fb0e8','circle','A');
-      if(I.m2!=null&&sig.m2){
-        abc.push({time:c[I.m2].time,value:sig.m2.high});mk(I.m2,'aboveBar','#5fb0e8','circle','B');
-        if(sig.m3&&sig.m3.tp1!=null){abc.push({time:c[c.length-1].time,value:sig.m3.tp1});
-          markers.push({time:c[c.length-1].time,position:'belowBar',color:'#2ea043',shape:'circle',text:'C=100 of A'});}
-      }
-      CHART.addLineSeries({color:'#5fb0e8cc',lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(abc);
-    }
-    cs.setMarkers(markers.sort((a,b)=>a.time-b.time));
-    // trendline 2-4 (ต่อยาวถึงปัจจุบัน)
-    if(I.p2!=null&&I.p4!=null&&P.p2!=null&&P.p4!=null&&sig.trendlineNow!=null){
-      CHART.addLineSeries({color:'#8b5cf6aa',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false})
-        .setData([{time:c[I.p2].time,value:P.p2},{time:c[I.p4].time,value:P.p4},{time:c[c.length-1].time,value:sig.trendlineNow}]);
-      legend+='<span><i style="border-color:#8b5cf6"></i>Trendline 2-4</span>';
-    }
     const pl=(price,color,title)=>{if(price!=null)cs.createPriceLine({price,color,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title});};
     pl(sig.chochLevel,'#d8a015','ChoCh/Flip '+fmt(sig.chochLevel));
     if(sig.entryZone){pl(sig.entryZone.lo,'#3b82c4','entry '+fmt(sig.entryZone.lo));pl(sig.entryZone.hi,'#3b82c4','entry '+fmt(sig.entryZone.hi));legend+='<span><i style="border-color:#3b82c4"></i>โซน entry</span>';}
-    if(sig.m3){pl(sig.m3.tp1,'#2ea043','TP1 100 of A '+fmt(sig.m3.tp1));legend+='<span><i style="border-color:#2ea043"></i>100 of A</span>';}
-    legend+='<span><i style="border-color:#9aa6b2"></i>1·2·3·4·5 impulse</span><span><i style="border-color:#5fb0e8"></i>A·B·C correction</span>';
-  }else{legend+='<span style="color:var(--txt3)">ไม่มีทรงเข้าเกณฑ์ — ดูราคาเฉยๆ</span>';}
+    if(sig.m3){pl(sig.m3.tp1,'#2ea043','TP 100 of A '+fmt(sig.m3.tp1));legend+='<span><i style="border-color:#2ea043"></i>TP 100 of A</span>';}
+  }
+  cs.setMarkers(markers.sort((a,b)=>a.time-b.time));
   document.getElementById('m-legend').innerHTML=legend;
   CHART.timeScale().fitContent();  // view ถูก slice มาแล้ว = zoom พอดีโครงสร้าง
   renderHtfChart(d);
