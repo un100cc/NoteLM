@@ -7,6 +7,7 @@ const NAV_PAGES = [
   { label:'EW',        href:'ew.html' },
   { label:'⚡ Shock',  href:'shockretest.html' },
   { label:'CDC',       href:'cdc.html' },
+  { label:'🌊 3Swings', href:'srisiam3swing.html' },
   { label:'Stats',     href:'stats.html' },
   { label:'Log',       href:'log.html' },
   { label:'Strategy',  href:'strategy.html' },

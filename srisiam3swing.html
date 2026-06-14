@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRISIAM 3 Swings · ตาม PDF</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root{
+    --bg:#0b0d10;--panel:#13171c;--panel2:#1a1f26;--line:#262d36;
+    --txt:#e6edf3;--txt2:#9aa6b2;--txt3:#5e6b78;
+    --buy:#2ea043;--warn:#d8a015;--bear:#e5484d;--wait:#3b82c4;--accent:#e7b008;
+    --up:#2ea043;--down:#e5484d;--flat:#5e6b78;
+    --mono:'SF Mono',ui-monospace,'JetBrains Mono',monospace;
+    --sans:'Inter',-apple-system,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  header{border-bottom:1px solid var(--line);padding:18px 22px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;background:linear-gradient(180deg,#0e1216,transparent)}
+  .logo{font-family:var(--mono);font-weight:700;font-size:17px;letter-spacing:-.5px}
+  .logo b{color:var(--accent)}
+  .sub{color:var(--txt3);font-size:12px;font-family:var(--mono)}
+  .navlinks{display:flex;gap:6px;margin-left:8px}
+  .navlinks a{font-family:var(--mono);font-size:11px;color:var(--txt2);text-decoration:none;padding:4px 9px;border:1px solid var(--line);border-radius:6px}
+  .navlinks a:hover{border-color:var(--accent);color:var(--txt)}
+  .navlinks a.cur{background:var(--accent);color:#1a1500;border-color:var(--accent);font-weight:700}
+  .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+  select,button{font-family:var(--mono);font-size:12px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+  button.scan{background:var(--accent);color:#1a1500;border:none;font-weight:700}
+  button.scan:hover{filter:brightness(1.1)}button.scan:disabled{opacity:.5;cursor:wait}
+  .note{margin:14px 22px 0;padding:11px 14px;background:#16140c;border:1px solid #2e2912;border-radius:8px;font-size:12px;color:var(--txt2);line-height:1.6}
+  .note b{color:var(--accent)}
+
+  .regime{margin:14px 22px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .regime-head{padding:11px 16px;font-family:var(--mono);font-size:12px;color:var(--txt2);background:var(--panel);border-bottom:1px solid var(--line)}
+  .regime-head b{color:var(--txt)}
+  .regime-bar{display:flex;height:38px}
+  .rseg{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:700;color:#0b0d10;transition:flex .3s}
+  .rseg.up{background:var(--up)}.rseg.down{background:var(--down)}.rseg.flat{background:#33404d;color:var(--txt2)}
+  .rseg:empty{display:none}
+
+  .sumbar{display:flex;margin:12px 22px 0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .sumcell{flex:1;padding:10px 14px;border-right:1px solid var(--line);font-family:var(--mono)}
+  .sumcell:last-child{border-right:none}
+  .sumcell .k{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px}
+  .sumcell .v{font-size:18px;font-weight:700;margin-top:2px}
+
+  .ts{margin:10px 22px 0;font-family:var(--mono);font-size:11px;color:var(--txt3)}
+  .wrap{padding:14px 22px 60px}
+  .section-label{font-family:var(--mono);font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin:18px 0 12px;display:flex;align-items:center;gap:10px}
+  .section-label::after{content:'';flex:1;height:1px;background:var(--line)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+  .empty{grid-column:1/-1;padding:40px 16px;text-align:center;color:var(--txt3);font-family:var(--mono);font-size:13px}
+  .skel{height:150px;background:linear-gradient(90deg,#13171c,#1a1f26,#13171c);border-radius:10px;animation:sk 1.2s infinite}
+  @keyframes sk{0%{opacity:.5}50%{opacity:1}100%{opacity:.5}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .1s}
+  .card:hover{border-color:var(--accent)}.card:active{transform:scale(.995)}
+  .card.entry{border-left:3px solid var(--buy)}
+  .card.choch{border-left:3px solid var(--warn)}
+  .card.run{border-left:3px solid var(--wait)}
+  .card.form{border-left:3px solid #4a5460}
+  .card.done{border-left:3px solid var(--txt3);opacity:.7}
+  .ctop{display:flex;align-items:center;gap:10px;padding:13px 15px 9px}
+  .sym{font-family:var(--mono);font-weight:700;font-size:15px}
+  .full{color:var(--txt3);font-size:11px}
+  .badge{margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 9px;border-radius:5px}
+  .badge.entry{background:#0e2a16;color:#3fd45f}
+  .badge.choch{background:#2a2207;color:#f0c33a}
+  .badge.run{background:#0c2030;color:#5fb0e8}
+  .badge.form{background:#1e242b;color:#8b97a3}
+  .badge.done{background:#1a1f26;color:var(--txt3)}
+
+  .htf{display:flex;align-items:center;gap:8px;padding:0 15px 8px}
+  .htf-pill{font-family:var(--mono);font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px}
+  .htf-pill.up{background:#0e2a16;color:#3fd45f}.htf-pill.down{background:#2a0e0e;color:#f0726e}.htf-pill.flat{background:#1e242b;color:#8b97a3}
+  .htf-detail{font-family:var(--mono);font-size:11px;color:var(--txt3)}
+  .cbody{padding:0 15px 14px}
+  .dir{font-family:var(--mono);font-size:12px;margin-bottom:6px}
+  .dir .L{color:var(--buy);font-weight:700}.dir .S{color:var(--bear);font-weight:700}
+  .dir b{color:var(--accent)}
+  .age{font-family:var(--mono);font-size:11px;color:var(--txt3);margin-bottom:6px}
+  .stageinfo{font-family:var(--mono);font-size:11px;color:var(--txt2);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:7px 9px;margin-bottom:8px;line-height:1.5}
+  .warn-slow{font-family:var(--mono);font-size:11px;color:#f0726e;background:#2a0e0e;border:1px solid #6e2424;border-radius:6px;padding:7px 9px;margin-bottom:8px;line-height:1.5;font-weight:600}
+  .plan{border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-bottom:8px}
+  .prow{display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px}
+  .prow:last-child{border-bottom:none}
+  .prow .lbl{color:var(--txt3)}
+  .prow .val{font-weight:600}
+  .val.entry{color:var(--wait)}.val.tp{color:var(--buy)}.val.sl{color:var(--bear)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+  .chip{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid var(--line);display:flex;gap:5px;align-items:center}
+  .chip.good{border-color:#1f6e36;color:#3fd45f}.chip.mid{border-color:#6e5a1f;color:#f0c33a}.chip.bad{border-color:#6e2424;color:#f0726e}
+  .chip .cv{font-weight:700}
+  .pts{font-family:var(--mono);font-size:10.5px;color:var(--txt3);margin-top:4px;line-height:1.6}
+
+  /* chart modal */
+  .modal{position:fixed;inset:0;background:rgba(5,7,9,.82);backdrop-filter:blur(3px);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+  .modal.open{display:flex}
+  .modal-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(980px,100%);max-height:92vh;overflow:hidden;display:flex;flex-direction:column}
+  .modal-head{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .modal-head .sym{font-family:var(--mono);font-weight:700;font-size:16px}
+  .modal-head .meta{font-family:var(--mono);font-size:12px;color:var(--txt2)}
+  .modal-head .x{margin-left:auto;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:6px;width:30px;height:30px;cursor:pointer;font-size:16px}
+  .modal-legend{display:flex;gap:14px;flex-wrap:wrap;padding:8px 18px;font-family:var(--mono);font-size:11px;color:var(--txt2);border-bottom:1px solid var(--line)}
+  .modal-legend i{display:inline-block;width:18px;height:0;border-top-width:2px;border-top-style:solid;vertical-align:middle;margin-right:5px}
+  .charts{overflow-y:auto;flex:1}
+  .chart-cap{font-family:var(--mono);font-size:11px;color:var(--txt2);padding:8px 18px 2px;border-top:1px solid var(--line)}
+  .chart-cap:first-child{border-top:none}
+  .chart-cap b{color:var(--accent)}
+  #chart{height:380px;width:100%}
+  #chart-htf{height:240px;width:100%}
+  @media(max-width:640px){#chart{height:320px}#chart-htf{height:220px}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="logo">SRISIAM <b>3 SWINGS</b></div>
+    <div class="sub">ตาม PDF เต็ม · impulse (1)-(5) + Trendline 2-4 + Div + ChoCh → A·B·C (100 of A)</div>
+  </div>
+  <div class="navlinks">
+    <a href="index.html">Dashboard</a>
+    <a href="srisiam-scanner.html">Scanner เบา</a>
+    <a class="cur" href="srisiam3swing.html">3Swings</a>
+    <a href="log.html">Log</a>
+  </div>
+  <div class="controls">
+    <select id="tf">
+      <option value="4h" selected>setup 4h</option>
+      <option value="1h">setup 1h</option>
+      <option value="1d">setup 1วัน</option>
+    </select>
+    <select id="filter">
+      <option value="all">ทั้งหมด</option>
+      <option value="entry">⚡ พร้อมเข้า (ENTRY)</option>
+      <option value="choch">รอ retrace (CHOCH)</option>
+      <option value="forming">กำลังก่อตัว</option>
+    </select>
+    <button class="scan" id="scanBtn" onclick="scanAll()">สแกน</button>
+  </div>
+</header>
+
+<div class="note">
+  หน้านี้ใช้ engine ตาม <b>คู่มือ SRISIAM (PDF)</b> เต็มรูปแบบ: ตรวจทรง impulse 5 คลื่น (กฎ (4) ห้าม overlap (1)), Trendline 2-4,
+  RSI Divergence (3→5) + ความแรง Fib ext, ยืนยัน <b>ChoCh ปิดเต็มแท่งใต้จุด (4)</b>, แล้ว A·B·C (M1/M2/M3) เข้าที่ Fib 38.2–78.6% ของ M1 ·
+  <b>TP1 = 100 of A</b> เสมอ · คลิกการ์ดเพื่อดูกราฟทรงเต็ม
+</div>
+
+<div class="regime" id="regime" style="display:none">
+  <div class="regime-head">degree ใหญ่ (<b id="htf-label">1D</b> · นับ swing HH/HL vs LH/LL) → <b id="regime-verdict">–</b></div>
+  <div class="regime-bar" id="regime-bar"></div>
+</div>
+
+<div class="sumbar" id="sumbar" style="display:none">
+  <div class="sumcell"><div class="k">⚡ พร้อมเข้า</div><div class="v" id="s-entry" style="color:var(--buy)">–</div></div>
+  <div class="sumcell"><div class="k">รอ retrace</div><div class="v" id="s-choch" style="color:var(--warn)">–</div></div>
+  <div class="sumcell"><div class="k">align กับ degree</div><div class="v" id="s-align">–</div></div>
+  <div class="sumcell"><div class="k">มีของรวม</div><div class="v" id="s-total">–</div></div>
+</div>
+
+<div class="ts" id="ts"></div>
+<div class="wrap">
+  <div class="grid" id="grid"><div class="empty">กด "สแกน" — ดึง setup + degree ใหญ่จาก Binance</div></div>
+</div>
+
+<div class="modal" id="modal" onclick="if(event.target===this)closeChart()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span class="sym" id="m-sym">–</span>
+      <span class="meta" id="m-meta"></span>
+      <button class="x" onclick="closeChart()" title="ปิด">✕</button>
+    </div>
+    <div class="modal-legend" id="m-legend"></div>
+    <div class="charts">
+      <div class="chart-cap" id="cap-setup">setup</div>
+      <div id="chart"></div>
+      <div class="chart-cap" id="cap-htf">degree ใหญ่</div>
+      <div id="chart-htf"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SRISIAM Waves engine — port ตรงจาก srisiam.js (repo srisiam3swing)
+   ============================================================ */
+function rsi(closes,period=14){const out=new Array(closes.length).fill(null);if(closes.length<=period)return out;
+  let gain=0,loss=0;for(let i=1;i<=period;i++){const d=closes[i]-closes[i-1];if(d>=0)gain+=d;else loss-=d;}
+  let avgG=gain/period,avgL=loss/period;out[period]=avgL===0?100:100-100/(1+avgG/avgL);
+  for(let i=period+1;i<closes.length;i++){const d=closes[i]-closes[i-1];
+    avgG=(avgG*(period-1)+Math.max(d,0))/period;avgL=(avgL*(period-1)+Math.max(-d,0))/period;
+    out[i]=avgL===0?100:100-100/(1+avgG/avgL);}return out;}
+function findPivots(c,L=4,R=4){const piv=[];for(let i=L;i<c.length-R;i++){let isH=true,isL=true;
+  for(let j=i-L;j<=i+R;j++){if(j===i)continue;if(c[j].high>=c[i].high)isH=false;if(c[j].low<=c[i].low)isL=false;if(!isH&&!isL)break;}
+  if(isH)piv.push({i,price:c[i].high,t:'H'});if(isL)piv.push({i,price:c[i].low,t:'L'});}return piv;}
+function zigzag(piv){const z=[];for(const p of piv){const last=z[z.length-1];if(!last){z.push({...p});continue;}
+  if(last.t===p.t){if(p.t==='H'?p.price>last.price:p.price<last.price)z[z.length-1]={...p};}else z.push({...p});}return z;}
+function rsiAt(rsiArr,i){if(rsiArr[i]!=null)return rsiArr[i];for(let d=1;d<=1;d++){if(rsiArr[i-d]!=null)return rsiArr[i-d];if(rsiArr[i+d]!=null)return rsiArr[i+d];}return null;}
+function m3Expectation(divExt,retracePct){
+  if(retracePct!=null&&retracePct>50)return{lo:100,hi:100,form:'ขั้นต่ำ 100 of A (M2 ลึกเกิน 50%)'};
+  if(divExt>=161.8){if(retracePct!=null&&retracePct<=38.2)return{lo:161.8,hi:200,form:'แบบ 1 : Div แรง + รีเทสตื้น'};
+    if(retracePct!=null)return{lo:138.2,hi:161.8,form:'แบบ 2 : Div แรง + รีเทสลึก'};return{lo:100,hi:161.8,form:'Div แรง (รอ M2)'};}
+  if(divExt>=138.2){if(retracePct!=null&&retracePct<=38.2)return{lo:100,hi:138.2,form:'แบบ 3 : Div ปานกลาง + รีเทสตื้น'};
+    if(retracePct!=null)return{lo:100,hi:100,form:'แบบ 4 : Div ปานกลาง + รีเทสลึก'};return{lo:100,hi:138.2,form:'Div ปานกลาง (รอ M2)'};}
+  return{lo:100,hi:100,form:'ขั้นต่ำ 100 of A'};}
+function round(v,d=6){if(v==null||!isFinite(v))return null;const m=Math.pow(10,d);let r=Math.round(v*m)/m;
+  if(d===6){const a=Math.abs(r);if(a>=1000)return Math.round(r*100)/100;if(a>=1)return Math.round(r*10000)/10000;}return r;}
+function detectBearish(candles,opts={}){
+  const maxAgeBars=opts.maxAgeBars??90;const closes=candles.map(c=>c.close);const r=rsi(closes,14);
+  const piv=findPivots(candles,opts.pivotL??4,opts.pivotR??4);const z=zigzag(piv);const n=candles.length;
+  for(let k=z.length-1;k>=3;k--){if(z[k].t!=='H')continue;
+    const H5=z[k],L4=z[k-1],H3=z[k-2],L2=z[k-3];
+    if(L4.t!=='L'||H3.t!=='H'||L2.t!=='L')continue;
+    if(n-1-H5.i>maxAgeBars)break;
+    if(!(L4.price>L2.price))continue;
+    if(!(H5.price>=H3.price*0.998))continue;
+    const minLeg=opts.minLeg??3;
+    if(H3.i-L2.i<minLeg||L4.i-H3.i<minLeg||H5.i-L4.i<minLeg)continue;
+    let P1=null;for(const p of piv)if(p.t==='H'&&p.i<L2.i)P1=p;
+    if(!P1)continue;
+    if(L2.i-P1.i<minLeg)continue;
+    if(!(H3.price>P1.price))continue;
+    if(!(L4.price>P1.price))continue;
+    const w1=P1.price-L2.price,w3=H3.price-L2.price;if(w1>0&&w3/w1>12)continue;
+    const r3=rsiAt(r,H3.i),r5=rsiAt(r,H5.i);
+    if(r3==null||r5==null||!(r5<r3-0.5))continue;
+    const range34=H3.price-L4.price;if(range34<=0)continue;
+    const divExt=((H5.price-L4.price)/range34)*100;
+    if(divExt<100)continue;
+    const divStrength=divExt>=161.8?'แรง':divExt>=138.2?'ปานกลาง':'อ่อน';
+    const obos=r3>=70&&r5>=65;
+    let reclaimed=false;for(let i=H5.i+1;i<n;i++)if(candles[i].close>H5.price*1.001){reclaimed=true;break;}
+    if(reclaimed)continue;
+    const slope=(L4.price-L2.price)/(L4.i-L2.i);const tlAt=(i)=>L2.price+slope*(i-L2.i);
+    let internalLow=null;for(const p of piv)if(p.t==='L'&&p.i>L4.i&&p.i<H5.i)internalLow=p;
+    let breakIdx=null,chochIntIdx=null,chochExtIdx=null;
+    for(let i=H5.i+1;i<n;i++){const cl=candles[i].close;
+      if(breakIdx==null&&cl<tlAt(i))breakIdx=i;
+      if(chochIntIdx==null&&internalLow&&cl<internalLow.price)chochIntIdx=i;
+      if(chochExtIdx==null&&cl<L4.price){chochExtIdx=i;break;}}
+    const last=candles[n-1];const price=last.close;
+    const base={side:'SHORT',
+      points:{p1:P1?P1.price:null,p2:L2.price,p3:H3.price,p4:L4.price,p5:H5.price,p5Idx:H5.i},
+      idx:{p1:P1?P1.i:null,p2:L2.i,p3:H3.i,p4:L4.i,p5:H5.i},
+      rsi:{r3:round(r3,1),r5:round(r5,1),obos},divExt:round(divExt,1),divStrength,
+      trendlineNow:round(tlAt(n-1)),chochLevel:L4.price,internalLow:internalLow?internalLow.price:null,
+      barsSinceP5:n-1-H5.i,price};
+    if(chochExtIdx==null){
+      if(breakIdx==null&&chochIntIdx==null)return{...base,stage:'DIV',stageInfo:'เกิด Divergence — รอหลุด Trendline 2-4 / ChoCh'};
+      return{...base,stage:'BREAK',stageInfo:(chochIntIdx!=null?'ChoCh (Internal) แล้ว':'หลุด Trendline 2-4 แล้ว')+' — รอ ChoCh (External) ปิดใต้จุด (4)'};}
+    let m1Idx=null,m1Low=null;for(const p of piv)if(p.t==='L'&&p.i>=chochExtIdx){m1Idx=p.i;m1Low=p.price;break;}
+    let m1Provisional=false;
+    if(m1Idx==null){m1Provisional=true;m1Idx=chochExtIdx;m1Low=candles[chochExtIdx].low;
+      for(let i=chochExtIdx;i<n;i++)if(candles[i].low<m1Low){m1Low=candles[i].low;m1Idx=i;}}
+    const m1Size=H5.price-m1Low;if(m1Size<=0)continue;
+    let m2High=null,m2Idx=null;
+    if(!m1Provisional){for(const p of piv)if(p.t==='H'&&p.i>m1Idx){m2Idx=p.i;m2High=p.price;break;}}
+    const retracePct=m2High!=null?((m2High-m1Low)/m1Size)*100:null;
+    if(retracePct!=null&&retracePct>100)continue;
+    const exp=m3Expectation(divExt,retracePct);
+    const anchor=m2High!=null?m2High:L4.price;
+    if(anchor>0&&anchor-m1Size<=0)continue;
+    const clampM3=(v)=>(anchor>0?Math.max(v,0):v);
+    const m3={tp1:round(clampM3(anchor-1.0*m1Size)),lo:round(clampM3(anchor-(exp.lo/100)*m1Size)),
+      hi:round(clampM3(anchor-(exp.hi/100)*m1Size)),pctLo:exp.lo,pctHi:exp.hi,form:exp.form};
+    const entryLo=m1Low+0.382*m1Size,entryHi=m1Low+0.786*m1Size;const inEntry=price>=entryLo&&price<=entryHi;
+    const ppe={lo:round(m1Low+0.786*m1Size),hi:round(m1Low+0.886*m1Size)};
+    const m1Bars=Math.max(m1Idx-H5.i,1);const m1Vel=m1Size/m1Bars;let m3q=null;
+    if(m2Idx!=null){const m3Bars=Math.max((n-1)-m2Idx,1);const m3Travel=anchor-price;const m3Vel=m3Travel/m3Bars;
+      const ratio=m1Vel>0?m3Vel/m1Vel:0;m3q={ratio:round(ratio,2),grade:ratio>=1?'M3X':ratio>=0.5?'M3':'SLOW',bars:m3Bars};}
+    const ext={...base,idx:{...base.idx,choch:chochExtIdx,m1:m1Idx,m2:m2Idx},abc:{a:'M1',b:'M2',c:'M3'},
+      m1:{high:H5.price,low:m1Low,size:round(m1Size)},m2:m2High!=null?{high:m2High,retracePct:round(retracePct,1)}:null,
+      m3,m3q,ppe,entryZone:{lo:round(entryLo),hi:round(entryHi),flip:L4.price},barsSinceChoch:n-1-chochExtIdx};
+    if(m2High==null||retracePct<23.6)return{...ext,stage:'CHOCH',stageInfo:'ChoCh ปิดแล้ว — รอ retrace เข้าโซน entry (M1/=A เกิดแล้ว)'};
+    if(inEntry){const near886=price>=ppe.lo;return{...ext,stage:'ENTRY',stageInfo:near886
+      ?'⚡ Entry แต่ลึกถึงโซน Post-Pattern Effect (0.786–0.886) — ระวัง invalid':'⚡ ราคาอยู่ในโซน entry (Fib 38.2–78.6% / Flip) — เข้าที่ M2/=B'};}
+    if(price<entryLo){const hit=price<=m3.tp1;const qtag=m3q?` · ${m3q.grade==='M3X'?'🚀 M3X (เร็ว/แรง = กลับตัวจริง)':m3q.grade==='SLOW'?'🐢 M3 อืด — ระวังพักตัวไปต่อ (invalid)':'M3 ปกติ'}`:'';
+      return{...ext,stage:hit?'M3':'RUN',stageInfo:(hit?'🎯 ถึงเป้า M3 ขั้นต่ำ (100%) แล้ว':'กำลังวิ่งหา M3/=C')+qtag};}
+    return{...ext,stage:'CHOCH',stageInfo:'⚠️ retrace ลึกเกิน 78.6% เข้าโซน Post-Pattern Effect — ใกล้ invalid'};}
+  return null;}
+function mirror(candles){return candles.map(c=>({time:c.time,open:-c.open,high:-c.low,low:-c.high,close:-c.close,volume:c.volume}));}
+function flipPrice(v){return v==null?null:round(-v);}
+function detectBullish(candles,opts){const m=detectBearish(mirror(candles),opts);if(!m)return null;const f=flipPrice;
+  return{...m,side:'LONG',price:f(m.price),
+    points:{p1:f(m.points.p1),p2:f(m.points.p2),p3:f(m.points.p3),p4:f(m.points.p4),p5:f(m.points.p5),p5Idx:m.points.p5Idx},
+    rsi:{r3:round(100-m.rsi.r3,1),r5:round(100-m.rsi.r5,1),obos:m.rsi.obos},
+    trendlineNow:f(m.trendlineNow),chochLevel:f(m.chochLevel),internalLow:f(m.internalLow),
+    m1:m.m1?{high:f(m.m1.low),low:f(m.m1.high),size:m.m1.size}:undefined,
+    m2:m.m2?{high:f(m.m2.high),retracePct:m.m2.retracePct}:m.m2,
+    m3:m.m3?{...m.m3,tp1:f(m.m3.tp1),lo:f(m.m3.lo),hi:f(m.m3.hi)}:undefined,m3q:m.m3q,
+    ppe:m.ppe?{lo:f(m.ppe.hi),hi:f(m.ppe.lo)}:undefined,
+    entryZone:m.entryZone?{lo:f(m.entryZone.hi),hi:f(m.entryZone.lo),flip:f(m.entryZone.flip)}:undefined};}
+function analyze(candles,opts={}){const bear=detectBearish(candles,opts);const bull=detectBullish(candles,opts);
+  if(bear&&bull)return bear.points.p5Idx>=bull.points.p5Idx?bear:bull;return bear||bull;}
+
+/* ============================================================
+   degree ใหญ่ (HTF bias) — นับ swing HH/HL vs LH/LL
+   ============================================================ */
+function htfBias(candles){const z=zigzag(findPivots(candles,4,4));
+  if(z.length<4)return{dir:'flat',label:'ข้อมูลน้อย',detail:''};
+  const last4=z.slice(-4);const highs=last4.filter(p=>p.t==='H').map(p=>p.price),lows=last4.filter(p=>p.t==='L').map(p=>p.price);
+  let up=0,down=0;if(highs.length>=2)highs[highs.length-1]>highs[0]?up++:down++;if(lows.length>=2)lows[lows.length-1]>lows[0]?up++:down++;
+  if(up>down)return{dir:'up',label:'ขาขึ้น (HH/HL)',detail:`${z.length} swing`};
+  if(down>up)return{dir:'down',label:'ขาลง (LH/LL)',detail:`${z.length} swing`};
+  return{dir:'flat',label:'sideway',detail:`${z.length} swing`};}
+
+/* ============================================================
+   data fetch (server proxy ก่อน → fallback Binance ตรง)
+   ============================================================ */
+async function fetchCandles(sym,interval,limit){
+  if(location.protocol==='http:'||location.protocol==='https:'){
+    try{const r=await fetch(`/api/candles/${sym}?interval=${interval}&limit=${limit}`);
+      if(r.ok){const j=await r.json();if(Array.isArray(j)&&j.length)return j;}}catch(e){}}
+  const r=await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${interval}&limit=${limit}`);
+  if(!r.ok)throw new Error(`Binance ${r.status}${location.protocol==='file:'?' (เปิดผ่าน file:// — ใช้ http://localhost แทน)':''}`);
+  const raw=await r.json();
+  return raw.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]}));}
+
+const COINS=[
+  ['BTCUSDT','BTC','Bitcoin'],['ETHUSDT','ETH','Ethereum'],['SOLUSDT','SOL','Solana'],
+  ['BNBUSDT','BNB','BNB'],['XRPUSDT','XRP','Ripple'],['ADAUSDT','ADA','Cardano'],
+  ['LINKUSDT','LINK','Chainlink'],['AVAXUSDT','AVAX','Avalanche'],['DOTUSDT','DOT','Polkadot'],
+  ['LTCUSDT','LTC','Litecoin'],['SUIUSDT','SUI','Sui'],['NEARUSDT','NEAR','Near'],
+  ['APTUSDT','APT','Aptos'],['ATOMUSDT','ATOM','Cosmos'],['DOGEUSDT','DOGE','Dogecoin'],['FETUSDT','FET','Fetch'],
+];
+const fmt=p=>p==null?'–':Math.abs(p)>=1000?'$'+(+p).toLocaleString('en',{maximumFractionDigits:0}):Math.abs(p)>=1?'$'+(+p).toFixed(3):'$'+(+p).toFixed(6);
+// จัดลำดับความสด/actionable ของแต่ละ stage
+const STAGE_RANK={ENTRY:1,CHOCH:2,RUN:3,BREAK:4,DIV:5,M3:6};
+let LIVE={},LOADING=false,HTF_TF='1D',SETUP_TF='4h';
+
+async function scanAll(){
+  if(LOADING)return;LOADING=true;
+  const btn=document.getElementById('scanBtn');btn.disabled=true;btn.textContent='กำลังสแกน…';
+  const tf=document.getElementById('tf').value;SETUP_TF=tf;
+  const htfTf=tf==='1d'?'1w':'1d';HTF_TF=htfTf.toUpperCase();
+  document.getElementById('grid').innerHTML=COINS.map(()=>'<div class="skel"></div>').join('');
+  for(let i=0;i<COINS.length;i+=4){
+    const batch=COINS.slice(i,i+4);
+    await Promise.all(batch.map(async c=>{
+      try{
+        const [r4,rh]=await Promise.all([fetchCandles(c[0],tf,500),fetchCandles(c[0],htfTf,300)]);
+        if(!Array.isArray(r4)||r4.length<80)throw new Error('ข้อมูลน้อยเกินไป');
+        const sig=analyze(r4);
+        const bias=Array.isArray(rh)&&rh.length>=40?htfBias(rh):{dir:'flat',label:HTF_TF+' ข้อมูลน้อย',detail:''};
+        LIVE[c[0]]={sig,bias,price:r4[r4.length-1].close,candles:r4,htfCandles:rh};
+      }catch(e){LIVE[c[0]]={error:true,msg:(e&&e.message)||String(e)};}
+    }));
+    if(i+4<COINS.length)await new Promise(r=>setTimeout(r,350));
+  }
+  render();
+  document.getElementById('ts').textContent='อัปเดต: '+new Date().toLocaleString('th-TH')+' · setup '+tf+' · degree '+HTF_TF;
+  btn.disabled=false;btn.textContent='สแกน';LOADING=false;
+}
+
+function sigDir(d){return d.sig?(d.sig.side==='LONG'?'up':'down'):null;}
+function isAligned(d){if(!d.sig||d.bias.dir==='flat')return false;return(d.sig.side==='LONG'&&d.bias.dir==='up')||(d.sig.side==='SHORT'&&d.bias.dir==='down');}
+
+function render(){
+  const filter=document.getElementById('filter').value;
+  const errCoins=COINS.filter(c=>{const d=LIVE[c[0]];return d&&d.error;});
+  const grid=document.getElementById('grid');
+  if(errCoins.length===COINS.length&&errCoins.length>0){
+    const msg=(LIVE[COINS[0][0]]||{}).msg||'unknown';
+    grid.innerHTML=`<div class="empty" style="text-align:left;line-height:1.8">⚠ <b>ดึงข้อมูลไม่ได้ทั้ง ${errCoins.length} เหรียญ</b> — ต่อ Binance ไม่ได้<br>
+      • เปิดผ่าน <b>http://localhost:3000/srisiam3swing.html</b> (รัน <code>node server.js</code> ก่อน) ไม่ใช่ file:// หรือ artifact viewer<br>
+      <span style="color:var(--txt3)">error: ${msg}</span></div>`;
+    document.getElementById('sumbar').style.display='none';return;}
+
+  // regime bar
+  let up=0,down=0,flat=0;
+  COINS.forEach(c=>{const d=LIVE[c[0]];if(!d||d.error)return;d.bias.dir==='up'?up++:d.bias.dir==='down'?down++:flat++;});
+  document.getElementById('regime').style.display='block';
+  document.getElementById('htf-label').textContent=HTF_TF;
+  document.getElementById('regime-bar').innerHTML=
+    `<div class="rseg up" style="flex:${up}">${up?up+' ขึ้น':''}</div>`+
+    `<div class="rseg flat" style="flex:${flat}">${flat?flat+' sideway':''}</div>`+
+    `<div class="rseg down" style="flex:${down}">${down?down+' ลง':''}</div>`;
+  document.getElementById('regime-verdict').textContent=
+    up>down*1.5?'ตลาดส่วนใหญ่ขาขึ้น — เน้น LONG ที่ align':down>up*1.5?'ตลาดส่วนใหญ่ขาลง — เน้น SHORT ที่ align':'ตลาดผสม — เลือกเฉพาะตัวที่ align ชัด';
+
+  const order=c=>{const d=LIVE[c[0]];if(!d||d.error||!d.sig)return 99;
+    return (isAligned(d)?0:10)+(STAGE_RANK[d.sig.stage]||9);};
+  const sorted=[...COINS].sort((a,b)=>order(a)-order(b));
+
+  let mainCards='',otherCards='',nEntry=0,nChoch=0,nAlign=0,nTotal=0;
+  sorted.forEach(c=>{
+    const d=LIVE[c[0]];if(!d||d.error)return;
+    const sig=d.sig,bias=d.bias,aligned=isAligned(d);
+    let state='none',badge='ไม่มี setup',badgeC='form';
+    if(sig){
+      nTotal++;
+      const st=sig.stage;
+      if(st==='ENTRY'){state='entry';badge='⚡ พร้อมเข้า';badgeC='entry';nEntry++;}
+      else if(st==='CHOCH'){state='choch';badge='รอ retrace';badgeC='choch';nChoch++;}
+      else if(st==='RUN'){state='run';badge='วิ่งหา M3';badgeC='run';}
+      else if(st==='M3'){state='done';badge='ถึงเป้าแล้ว';badgeC='done';}
+      else{state='form';badge=st==='DIV'?'เกิด Div':'หลุดเส้น';badgeC='form';}
+      if(aligned)nAlign++;
+    }
+    if(filter==='entry'&&state!=='entry')return;
+    if(filter==='choch'&&state!=='choch')return;
+    if(filter==='forming'&&!(state==='form'))return;
+    if(!sig&&filter!=='all')return;
+
+    const bp=bias.dir==='up'?'up':bias.dir==='down'?'down':'flat';
+    const bl=bias.dir==='up'?'▲ '+HTF_TF+' ขาขึ้น':bias.dir==='down'?'▼ '+HTF_TF+' ขาลง':'◆ '+HTF_TF+' sideway';
+    const htf=`<div class="htf"><span class="htf-pill ${bp}">${bl}</span><span class="htf-detail">${bias.detail}</span></div>`;
+
+    let body='';
+    if(sig){
+      const isLong=sig.side==='LONG';
+      const ageRef=sig.idx&&sig.idx.choch!=null?sig.barsSinceChoch:sig.barsSinceP5;
+      const ageLbl=sig.idx&&sig.idx.choch!=null?'ChoCh':'จุด (5)';
+      body+=`<div class="dir">${isLong?'<span class="L">▲ LONG</span>':'<span class="S">▼ SHORT</span>'} · Div <b>${sig.divStrength}</b> (${sig.divExt}%) · RSI ${sig.rsi.r3}→${sig.rsi.r5}</div>`;
+      body+=`<div class="age">🕒 ${ageLbl} เมื่อ ${ageRef} แท่ง (~${(ageRef*({'1h':1,'4h':4,'1d':24}[SETUP_TF]||4)/24).toFixed(1)} วัน) ก่อน</div>`;
+      body+=`<div class="stageinfo">${sig.stageInfo}</div>`;
+      // ⚠️ เตือน "พักตัว ≠ กลับตัว" — M3 อืด (SLOW) = 3 สวิงพักตัวไปต่อทางเดิม (skill: เคส 40 invalidation)
+      if(sig.m3q&&sig.m3q.grade==='SLOW'){const ct=!aligned&&bias.dir!=='flat';
+        body+=`<div class="warn-slow">⚠️ พักตัว — M3 อืด (${sig.m3q.ratio}x ของ M1)${ct?' + สวนเทรนด์ใหญ่':''}<br>น่าจะ "ไปต่อทางเดิม" ไม่ใช่กลับตัว → พิจารณาข้าม</div>`;}
+      if(sig.entryZone&&sig.m3){
+        body+=`<div class="plan">
+          <div class="prow"><span class="lbl">โซน entry (38.2–78.6% M1)</span><span class="val entry">${fmt(sig.entryZone.lo)}–${fmt(sig.entryZone.hi)}</span></div>
+          <div class="prow"><span class="lbl">Flip (จุด 4)</span><span class="val">${fmt(sig.entryZone.flip)}</span></div>
+          <div class="prow"><span class="lbl">TP1 (100 of A)</span><span class="val tp">${fmt(sig.m3.tp1)}</span></div>
+          ${sig.m3.pctLo!==sig.m3.pctHi?`<div class="prow"><span class="lbl">เป้าคาดหวัง (${sig.m3.pctLo}–${sig.m3.pctHi}%)</span><span class="val tp">${fmt(sig.m3.hi)}–${fmt(sig.m3.lo)}</span></div>`:''}
+          <div class="prow"><span class="lbl">ราคาปัจจุบัน</span><span class="val">${fmt(sig.price)}</span></div></div>`;
+        body+=`<div class="chips">`;
+        if(sig.m2)body+=`<div class="chip ${sig.m2.retracePct<=50?'good':'mid'}"><span>M2 retrace</span><span class="cv">${sig.m2.retracePct}%</span></div>`;
+        if(sig.m3q)body+=`<div class="chip ${sig.m3q.grade==='M3X'?'good':sig.m3q.grade==='SLOW'?'bad':'mid'}"><span>M3</span><span class="cv">${sig.m3q.grade}</span></div>`;
+        body+=`<div class="chip ${sig.divStrength==='แรง'?'good':sig.divStrength==='ปานกลาง'?'mid':'bad'}"><span>${sig.m3.form}</span></div>`;
+        body+=`</div>`;
+      }
+      body+=`<div class="pts">ทรง: (1)${fmt(sig.points.p1)} (2)${fmt(sig.points.p2)} (3)${fmt(sig.points.p3)} (4)${fmt(sig.points.p4)} (5)${fmt(sig.points.p5)}</div>`;
+      if(aligned)body+=`<div class="chips" style="margin-top:6px"><div class="chip good">✓ align กับ degree ${HTF_TF}</div></div>`;
+      else if(bias.dir!=='flat')body+=`<div class="chips" style="margin-top:6px"><div class="chip mid">⚠ สวนทาง degree ${HTF_TF} (counter-trend)</div></div>`;
+    }else{
+      body=`<div class="age">ราคา ${fmt(d.price)} · ไม่มีทรง impulse+Div ที่เข้าเกณฑ์ PDF</div>`;
+    }
+    const card=`<div class="card ${state}" onclick="openChart('${c[0]}','${c[1]}')">
+      <div class="ctop"><div><div class="sym">${c[1]}</div><div class="full">${c[2]}</div></div>
+        <div class="badge ${badgeC}">${badge}</div></div>
+      ${htf}<div class="cbody">${body}</div></div>`;
+    if(state==='entry'||state==='choch'||state==='run')mainCards+=card;else otherCards+=card;
+  });
+
+  let out='';
+  if(mainCards)out+=`<div class="section-label" style="grid-column:1/-1">setup ที่มีของ — เรียง align + ใกล้เข้าก่อน</div>`+mainCards;
+  if(otherCards&&filter==='all')out+=`<div class="section-label" style="grid-column:1/-1">กำลังก่อตัว / จบแล้ว / ไม่มี</div>`+otherCards;
+  grid.innerHTML=out||'<div class="empty">ไม่มีเหรียญตรงกับ filter นี้ — ลองเลือก "ทั้งหมด"</div>';
+
+  document.getElementById('sumbar').style.display='flex';
+  document.getElementById('s-entry').textContent=nEntry;
+  document.getElementById('s-choch').textContent=nChoch;
+  document.getElementById('s-align').textContent=nAlign;
+  document.getElementById('s-total').textContent=nTotal;
+}
+
+/* ============================================================
+   chart modal — ทรงเต็ม: (1)-(5) + trendline 2-4 + A/B/C + 100 of A
+   ============================================================ */
+let CHART=null;
+function emaArr(closes,p){const k=2/(p+1);let e=closes[0];const out=[];for(let i=0;i<closes.length;i++){e=i?closes[i]*k+e*(1-k):closes[i];out.push(e);}return out;}
+function openChart(sym,label){
+  const d=LIVE[sym];if(!d||d.error||!Array.isArray(d.candles)||!d.candles.length)return;
+  const sig=d.sig,c=d.candles;
+  // ส่งเฉพาะแท่งในช่วงโครงสร้าง (จากก่อนจุด 1 ~15 แท่ง → ปัจจุบัน) → zoom เห็น count ชัดทุก browser
+  const startIdx=(sig&&sig.idx)?Math.max(0,(sig.idx.p1!=null?sig.idx.p1:sig.idx.p5)-15):0;
+  const view=c.slice(startIdx);
+  document.getElementById('m-sym').textContent=label||sym;
+  let meta=`${SETUP_TF} · ${c.length} แท่ง · degree ${HTF_TF} ${d.bias.label}`;
+  if(sig)meta+=` · ${sig.side==='LONG'?'▲ LONG':'▼ SHORT'} · ${sig.stage} · Div ${sig.divStrength} ${sig.divExt}%`;
+  document.getElementById('m-meta').textContent=meta;
+  document.getElementById('cap-setup').innerHTML=`📊 setup <b>${SETUP_TF}</b> — ทรง impulse (1)-(5) + A·B·C`;
+  document.getElementById('cap-htf').innerHTML=`🌊 degree ใหญ่ <b>${HTF_TF}</b> — ${d.bias.label} (โครงคลื่น HH/HL vs LH/LL)`;
+  document.getElementById('modal').classList.add('open');
+  const el=document.getElementById('chart');el.innerHTML='';if(CHART){CHART.remove();CHART=null;}
+  CHART=LightweightCharts.createChart(el,{width:el.clientWidth||920,height:el.clientHeight||480,
+    layout:{background:{color:'transparent'},textColor:'#9aa6b2',fontFamily:"'JetBrains Mono',monospace"},
+    grid:{vertLines:{color:'#1a1f2633'},horzLines:{color:'#1a1f2633'}},
+    rightPriceScale:{borderColor:'#262d36'},timeScale:{borderColor:'#262d36',timeVisible:true,secondsVisible:false},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal}});
+  const cs=CHART.addCandlestickSeries({upColor:'#2ea043',downColor:'#e5484d',borderUpColor:'#2ea043',borderDownColor:'#e5484d',wickUpColor:'#2ea043',wickDownColor:'#e5484d'});
+  cs.setData(view.map(x=>({time:x.time,open:x.open,high:x.high,low:x.low,close:x.close})));
+  const ema=emaArr(c.map(x=>x.close),20);
+  CHART.addLineSeries({color:'#e7b00866',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(view.map((x,gi)=>({time:x.time,value:ema[startIdx+gi]})));
+  let legend='<span>🕯 '+SETUP_TF+'</span><span><i style="border-color:#e7b008"></i>EMA20</span>';
+  const tAt=i=>(i!=null&&c[i])?c[i].time:null;
+  if(sig){
+    const I=sig.idx,P=sig.points;
+    // ── เส้นโครง Elliott impulse 1→2→3→4→5 (จบเทรนด์เดิม) ──
+    const impPts=[[I.p1,P.p1],[I.p2,P.p2],[I.p3,P.p3],[I.p4,P.p4],[I.p5,P.p5]].filter(x=>x[0]!=null&&x[1]!=null&&c[x[0]]);
+    if(impPts.length>=2)CHART.addLineSeries({color:'#e8eef5',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false})
+      .setData(impPts.map(x=>({time:c[x[0]].time,value:x[1]})));
+    const markers=[];
+    const mk=(i,pos,col,shape,txt)=>{if(i!=null&&c[i])markers.push({time:c[i].time,position:pos,color:col,shape,text:txt});};
+    mk(I.p1,'aboveBar','#e8eef5','circle','1');mk(I.p2,'belowBar','#e8eef5','circle','2');
+    mk(I.p3,'aboveBar','#e8eef5','circle','3');mk(I.p4,'belowBar','#e8eef5','circle','4');
+    mk(I.p5,'aboveBar','#e7b008',sig.side==='LONG'?'arrowUp':'arrowDown','5');
+    if(I.choch!=null)mk(I.choch,'belowBar','#d8a015','square','ChoCh');
+    // ── เส้นโครง ABC correction 5→A→B→C (คลื่นกลับตัว) ──
+    if(I.m1!=null&&sig.m1){
+      const abc=[{time:c[I.p5].time,value:P.p5},{time:c[I.m1].time,value:sig.m1.low}];
+      mk(I.m1,'belowBar','#5fb0e8','circle','A');
+      if(I.m2!=null&&sig.m2){
+        abc.push({time:c[I.m2].time,value:sig.m2.high});mk(I.m2,'aboveBar','#5fb0e8','circle','B');
+        if(sig.m3&&sig.m3.tp1!=null){abc.push({time:c[c.length-1].time,value:sig.m3.tp1});
+          markers.push({time:c[c.length-1].time,position:'belowBar',color:'#2ea043',shape:'circle',text:'C=100 of A'});}
+      }
+      CHART.addLineSeries({color:'#5fb0e8cc',lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(abc);
+    }
+    cs.setMarkers(markers.sort((a,b)=>a.time-b.time));
+    // trendline 2-4 (ต่อยาวถึงปัจจุบัน)
+    if(I.p2!=null&&I.p4!=null&&P.p2!=null&&P.p4!=null&&sig.trendlineNow!=null){
+      CHART.addLineSeries({color:'#8b5cf6aa',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false})
+        .setData([{time:c[I.p2].time,value:P.p2},{time:c[I.p4].time,value:P.p4},{time:c[c.length-1].time,value:sig.trendlineNow}]);
+      legend+='<span><i style="border-color:#8b5cf6"></i>Trendline 2-4</span>';
+    }
+    const pl=(price,color,title)=>{if(price!=null)cs.createPriceLine({price,color,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title});};
+    pl(sig.chochLevel,'#d8a015','ChoCh/Flip '+fmt(sig.chochLevel));
+    if(sig.entryZone){pl(sig.entryZone.lo,'#3b82c4','entry '+fmt(sig.entryZone.lo));pl(sig.entryZone.hi,'#3b82c4','entry '+fmt(sig.entryZone.hi));legend+='<span><i style="border-color:#3b82c4"></i>โซน entry</span>';}
+    if(sig.m3){pl(sig.m3.tp1,'#2ea043','TP1 100 of A '+fmt(sig.m3.tp1));legend+='<span><i style="border-color:#2ea043"></i>100 of A</span>';}
+    legend+='<span><i style="border-color:#9aa6b2"></i>1·2·3·4·5 impulse</span><span><i style="border-color:#5fb0e8"></i>A·B·C correction</span>';
+  }else{legend+='<span style="color:var(--txt3)">ไม่มีทรงเข้าเกณฑ์ — ดูราคาเฉยๆ</span>';}
+  document.getElementById('m-legend').innerHTML=legend;
+  CHART.timeScale().fitContent();  // view ถูก slice มาแล้ว = zoom พอดีโครงสร้าง
+  renderHtfChart(d);
+}
+// กราฟ degree ใหญ่ — แท่งเทียน HTF + โครงคลื่น zigzag + ป้าย HH/HL/LH/LL
+let CHART_HTF=null;
+function renderHtfChart(d){
+  const el=document.getElementById('chart-htf');el.innerHTML='';if(CHART_HTF){CHART_HTF.remove();CHART_HTF=null;}
+  const hc=d.htfCandles;
+  if(!Array.isArray(hc)||hc.length<10){el.innerHTML='<div style="padding:18px;color:var(--txt3);font-family:var(--mono);font-size:12px">degree ใหญ่: ข้อมูลไม่พอวาด</div>';return;}
+  CHART_HTF=LightweightCharts.createChart(el,{width:el.clientWidth||920,height:el.clientHeight||240,
+    layout:{background:{color:'transparent'},textColor:'#9aa6b2',fontFamily:"'JetBrains Mono',monospace"},
+    grid:{vertLines:{color:'#1a1f2622'},horzLines:{color:'#1a1f2622'}},
+    rightPriceScale:{borderColor:'#262d36'},timeScale:{borderColor:'#262d36',timeVisible:true,secondsVisible:false},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal}});
+  const cs=CHART_HTF.addCandlestickSeries({upColor:'#2ea04388',downColor:'#e5484d88',borderUpColor:'#2ea043',borderDownColor:'#e5484d',wickUpColor:'#2ea04388',wickDownColor:'#e5484d88'});
+  cs.setData(hc.map(x=>({time:x.time,open:x.open,high:x.high,low:x.low,close:x.close})));
+  const z=zigzag(findPivots(hc,4,4));
+  if(z.length>=2){
+    // เส้นโครงคลื่น (zigzag) เชื่อม pivot
+    CHART_HTF.addLineSeries({color:'#e7b008cc',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false})
+      .setData(z.map(p=>({time:hc[p.i].time,value:p.price})));
+    // ป้าย HH/HL/LH/LL
+    const markers=[];let lastH=null,lastL=null;
+    z.forEach(p=>{let txt,col;
+      if(p.t==='H'){txt=lastH==null?'H':p.price>lastH?'HH':'LH';col=p.price>(lastH??p.price)?'#3fd45f':lastH==null?'#9aa6b2':'#f0726e';lastH=p.price;}
+      else{txt=lastL==null?'L':p.price>lastL?'HL':'LL';col=p.price>(lastL??p.price)?'#3fd45f':lastL==null?'#9aa6b2':'#f0726e';lastL=p.price;}
+      markers.push({time:hc[p.i].time,position:p.t==='H'?'aboveBar':'belowBar',color:col,shape:'circle',text:txt});});
+    cs.setMarkers(markers.slice(-12).sort((a,b)=>a.time-b.time));
+  }
+  CHART_HTF.timeScale().fitContent();
+}
+function closeChart(){document.getElementById('modal').classList.remove('open');if(CHART){CHART.remove();CHART=null;}if(CHART_HTF){CHART_HTF.remove();CHART_HTF=null;}}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeChart();});
+window.addEventListener('resize',()=>{if(CHART){const e1=document.getElementById('chart');CHART.resize(e1.clientWidth||920,e1.clientHeight||380);}if(CHART_HTF){const e2=document.getElementById('chart-htf');CHART_HTF.resize(e2.clientWidth||920,e2.clientHeight||240);}});
+document.getElementById('filter').addEventListener('change',()=>{if(Object.keys(LIVE).length)render();});
+</script>
+</body>
+</html>
